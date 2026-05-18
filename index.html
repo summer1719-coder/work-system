@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>參考書、版版補充教材 — 115 年度工作管理系統</title>
+<style>* { margin: 0; padding: 0; box-sizing: border-box; } body { font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif; } #root { min-height: 100vh; } #loading { display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 18px; color: #666; }</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap">
+</head>
+<body>
+<div id="root"><div id="loading">⏳ 系統載入中...</div></div>
+<script>window.onerror=function(msg,url,line){var el=document.getElementById('loading');if(el)el.innerHTML='<div style="padding:20px;color:#c00;font-size:14px;max-width:600px;margin:0 auto"><h2>載入錯誤</h2><p>'+msg+'</p><p>行 '+line+'</p></div>';return true};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script>
+(function(){var DB='WorkMgmt',ST='kv',dbP=null;function odb(){if(dbP)return dbP;dbP=new Promise(function(ok,no){var r=indexedDB.open(DB,1);r.onupgradeneeded=function(){r.result.createObjectStore(ST)};r.onsuccess=function(){ok(r.result)};r.onerror=function(){no(r.error)}});return dbP}
+window.storage={get:function(k){return odb().then(function(db){return new Promise(function(ok,no){var t=db.transaction(ST,'readonly');var r=t.objectStore(ST).get(k);r.onsuccess=function(){r.result===undefined?ok(null):ok({key:k,value:r.result})};r.onerror=function(){no(r.error)}})})},set:function(k,v){return odb().then(function(db){return new Promise(function(ok,no){var t=db.transaction(ST,'readwrite');t.objectStore(ST).put(v,k);t.oncomplete=function(){ok({key:k,value:v})};t.onerror=function(){no(t.error)}})})},delete:function(k){return odb().then(function(db){return new Promise(function(ok,no){var t=db.transaction(ST,'readwrite');t.objectStore(ST).delete(k);t.oncomplete=function(){ok({key:k,deleted:true})};t.onerror=function(){no(t.error)}})})},list:function(p){return odb().then(function(db){return new Promise(function(ok,no){var t=db.transaction(ST,'readonly');var r=t.objectStore(ST).getAllKeys();r.onsuccess=function(){var ks=r.result;if(p)ks=ks.filter(function(k){return k.startsWith(p)});ok({keys:ks})};r.onerror=function(){no(r.error)}})})}};})();
+</script>
+<script type="text/babel">
+
+const MONTHS = ["1月","2月","3月","4月","5月","6月","7月","8月","9月","10月","11月","12月"];
+const PL = {
+  ref: { label: "參考書", color: "#1B6B93", bg: "#E8F4F8" },
+  supp: { label: "版版補充", color: "#E07A5F", bg: "#FDF0ED" },
+};
+const CATS = {
+  shipping: { label: "出貨與物流", icon: "📦" },
+  printing: { label: "印務與庫存管理", icon: "🏭" },
+  sales: { label: "銷售分析與定價", icon: "📊" },
+  marketing: { label: "營銷與前置準備", icon: "📣" },
+  project: { label: "額外專案", icon: "🚀" },
+};
+const AIT = [
+  { id: "copilot", label: "365 Copilot", icon: "🤖", color: "#0078D4" },
+  { id: "power_automate", label: "Power Automate", icon: "⚡", color: "#0066FF" },
+  { id: "gemini", label: "Gemini", icon: "✦", color: "#4285F4" },
+  { id: "claude", label: "Claude", icon: "🧠", color: "#D97706" },
+  { id: "chatgpt", label: "ChatGPT", icon: "💬", color: "#10A37F" },
+  { id: "other", label: "其他", icon: "🔧", color: "#6B7280" },
+];
+const STC = ["pending", "inProgress", "done"];
+const STM = {
+  pending: { label: "待處理", color: "#9CA3AF", bg: "#F3F4F6" },
+  inProgress: { label: "進行中", color: "#D97706", bg: "#FEF3C7" },
+  done: { label: "已完成", color: "#059669", bg: "#D1FAE5" },
+};
+const A = "#1B6B93";
+const F = "'Noto Sans TC','Helvetica Neue',sans-serif";
+
+async function sLoad(k) {
+  try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; }
+  catch { return null; }
+}
+async function sSave(k, d) {
+  try { await window.storage.set(k, JSON.stringify(d)); } catch (e) { /* silent */ }
+}
+
+/* ═══════ GITHUB CLOUD SYNC ═══════ */
+const GH_KEY = "wv5_gh";
+
+async function ghLoadCfg() {
+  try { const r = await window.storage.get(GH_KEY); return r ? JSON.parse(r.value) : null; } catch { return null; }
+}
+async function ghSaveCfg(c) { await window.storage.set(GH_KEY, JSON.stringify(c)); }
+
+async function ghPush(cfg, data) {
+  const url = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo + "/contents/data.json";
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  let sha = null;
+  try {
+    const g = await fetch(url, { headers: { Authorization: "token " + cfg.token } });
+    if (g.ok) sha = (await g.json()).sha;
+  } catch (e) {}
+  const body = { message: "sync " + new Date().toISOString().slice(0, 16), content: content };
+  if (sha) body.sha = sha;
+  const r = await fetch(url, {
+    method: "PUT",
+    headers: { Authorization: "token " + cfg.token, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error("Push " + r.status);
+  return true;
+}
+
+async function ghPull(cfg) {
+  const url = "https://api.github.com/repos/" + cfg.owner + "/" + cfg.repo + "/contents/data.json";
+  const r = await fetch(url, { headers: { Authorization: "token " + cfg.token } });
+  if (!r.ok) { if (r.status === 404) return null; throw new Error("Pull " + r.status); }
+  const j = await r.json();
+  return JSON.parse(decodeURIComponent(escape(atob(j.content))));
+}
+
+function dlColor(d) {
+  if (!d) return null;
+  const diff = (new Date(d) - new Date()) / 864e5;
+  if (diff < 0) return "#EF4444";
+  if (diff < 3) return "#F59E0B";
+  return "#6B7280";
+}
+
+function defTasks() {
+  const R = [
+    {m:0,c:"shipping",p:"both",t:"114(2)參補集批出貨",s:["參考書集批出貨","補充集批出貨"]},
+    {m:0,c:"printing",p:"both",t:"114(2)各項加刷",s:["參考書加刷","補充加刷"]},
+    {m:0,c:"sales",p:"both",t:"114(2)目標達成率公告",s:["達成率統計","公告發布"]},
+    {m:0,c:"sales",p:"ref",t:"參考書同業價格分析",s:["蒐集同業價格","分析比較報告"]},
+    {m:0,c:"marketing",p:"ref",t:"115參行銷提案",s:["提案企劃","簡報製作"]},
+    {m:0,c:"marketing",p:"ref",t:"115參價格評估",s:["成本分析","定價建議"]},
+    {m:0,c:"marketing",p:"both",t:"設定量與調書",s:[]},
+    {m:1,c:"shipping",p:"both",t:"114(2)參補調書作業",s:["調書清單整理","出貨協調"]},
+    {m:1,c:"printing",p:"both",t:"114(2)加刷公告",s:[]},
+    {m:1,c:"sales",p:"both",t:"114(2)目標達成率",s:[]},
+    {m:1,c:"sales",p:"ref",t:"115參價格簽呈",s:["價格表製作","簽呈上呈"]},
+    {m:1,c:"marketing",p:"ref",t:"115結帳辦法意見調查",s:[]},
+    {m:1,c:"marketing",p:"both",t:"財報差異說明",s:[]},
+    {m:2,c:"printing",p:"ref",t:"參考書調書",s:[]},
+    {m:2,c:"printing",p:"both",t:"加刷公告與印量分析",s:["加刷公告","印量分析","補電子簽"]},
+    {m:2,c:"printing",p:"supp",t:"115(1)樣書調查",s:["樣書調查","蓋章與印量"]},
+    {m:2,c:"printing",p:"supp",t:"補充報廢",s:[]},
+    {m:2,c:"sales",p:"both",t:"114(2)目標達成率",s:[]},
+    {m:2,c:"sales",p:"ref",t:"115參批價辦法",s:[]},
+    {m:2,c:"marketing",p:"both",t:"簽116-117明霖授權合約",s:[]},
+    {m:2,c:"marketing",p:"both",t:"115全區會議",s:[]},
+    {m:3,c:"shipping",p:"supp",t:"115(1)補充樣書出貨",s:[]},
+    {m:3,c:"printing",p:"supp",t:"115(1)補庫存修訂",s:[]},
+    {m:3,c:"printing",p:"ref",t:"參修訂對照",s:[]},
+    {m:3,c:"printing",p:"ref",t:"參考書報廢",s:[]},
+    {m:3,c:"sales",p:"both",t:"114(1)實銷銷售分析",s:[]},
+    {m:3,c:"sales",p:"both",t:"115銷售各式表單",s:[]},
+    {m:3,c:"marketing",p:"supp",t:"115版版批價",s:[]},
+    {m:3,c:"marketing",p:"ref",t:"115(1)參考書行銷執行",s:[]},
+    {m:4,c:"printing",p:"both",t:"115(1)參補一刷與勘誤",s:["參考書一刷","補充一刷","勘誤印量"]},
+    {m:4,c:"printing",p:"both",t:"115(1)庫存修訂",s:[]},
+    {m:4,c:"sales",p:"both",t:"114(1)實銷銷售分析",s:[]},
+    {m:4,c:"sales",p:"both",t:"114(2)核算表修訂",s:[]},
+    {m:4,c:"marketing",p:"both",t:"銷售前設定(含舊版配發)",s:[]},
+    {m:4,c:"marketing",p:"ref",t:"115(1)行銷規劃",s:[]},
+    {m:4,c:"marketing",p:"both",t:"公關書啟動",s:[]},
+    {m:5,c:"shipping",p:"both",t:"115(1)參補集批出貨規劃",s:[]},
+    {m:5,c:"printing",p:"ref",t:"115(1)參二刷(含公關書)",s:[]},
+    {m:5,c:"printing",p:"both",t:"115(1)銷售前置(條碼表)",s:[]},
+    {m:5,c:"sales",p:"ref",t:"115參批價",s:[]},
+    {m:5,c:"sales",p:"both",t:"115(1)設定量作業",s:[]},
+    {m:5,c:"marketing",p:"both",t:"115(1)公關書作業",s:[]},
+    {m:5,c:"marketing",p:"supp",t:"115(1)版版議價規格表",s:[]},
+    {m:5,c:"marketing",p:"ref",t:"115(1)行銷規劃執行",s:[]},
+    {m:5,c:"marketing",p:"supp",t:"高高屏補充議價協助",s:[]},
+    {m:6,c:"shipping",p:"both",t:"115(1)參補集批出貨",s:[]},
+    {m:6,c:"printing",p:"supp",t:"115(1)補二刷",s:[]},
+    {m:6,c:"printing",p:"ref",t:"調書作業",s:[]},
+    {m:6,c:"sales",p:"both",t:"115(1)參補目標設定",s:[]},
+    {m:6,c:"marketing",p:"both",t:"預算修訂",s:[]},
+    {m:6,c:"marketing",p:"both",t:"全區/經銷商頒獎",s:[]},
+    {m:7,c:"shipping",p:"both",t:"參補集批/公關書/備留量出貨",s:["參補集批出貨","公關書出貨","業務備留量出貨"]},
+    {m:7,c:"printing",p:"both",t:"加刷公告與調書",s:["加刷公告","設定量與調書"]},
+    {m:7,c:"sales",p:"both",t:"同業價格分析與目標達成率",s:["同業價格分析","目標達成率公告"]},
+    {m:7,c:"marketing",p:"both",t:"店頭廣宣與預算",s:["店頭廣宣置放","預算差異說明","momo網路銷售"]},
+    {m:8,c:"printing",p:"both",t:"調書/加刷/庫存修訂",s:["調書","加刷公告","庫存修訂"]},
+    {m:8,c:"printing",p:"supp",t:"補充報廢",s:[]},
+    {m:8,c:"sales",p:"both",t:"目標達成率",s:[]},
+    {m:8,c:"marketing",p:"supp",t:"115(2)公關書啟動",s:[]},
+    {m:8,c:"marketing",p:"both",t:"momo網路銷售",s:[]},
+    {m:9,c:"printing",p:"ref",t:"參考書報廢",s:[]},
+    {m:9,c:"printing",p:"supp",t:"115(2)庫存修訂與樣書",s:["庫存修訂","樣書蓋章與印量"]},
+    {m:9,c:"sales",p:"both",t:"114(2)實銷分析",s:[]},
+    {m:9,c:"marketing",p:"supp",t:"115(2)補充一刷與批價",s:[]},
+    {m:9,c:"marketing",p:"both",t:"公關書作業",s:[]},
+    {m:9,c:"marketing",p:"both",t:"momo網路銷售評估",s:[]},
+    {m:10,c:"shipping",p:"supp",t:"115(2)版版補充樣書出貨",s:[]},
+    {m:10,c:"printing",p:"ref",t:"參一刷(含公關書)與勘誤",s:["參一刷","公關書","勘誤/條碼貼紙"]},
+    {m:10,c:"printing",p:"both",t:"庫存修訂",s:[]},
+    {m:10,c:"sales",p:"ref",t:"115(1)參銷售分析",s:[]},
+    {m:10,c:"sales",p:"both",t:"核算表修訂",s:[]},
+    {m:10,c:"marketing",p:"both",t:"115(2)設定量啟動",s:[]},
+    {m:10,c:"marketing",p:"both",t:"116產品規格異動啟動",s:[]},
+    {m:10,c:"marketing",p:"both",t:"預算作業",s:[]},
+    {m:11,c:"shipping",p:"both",t:"參補集批/公關書/備留量出貨",s:["參補集批出貨","公關書出貨","業務備留量出貨"]},
+    {m:11,c:"printing",p:"both",t:"115(2)銷售前置(條碼表)",s:[]},
+    {m:11,c:"printing",p:"both",t:"116產品規格確認",s:[]},
+    {m:11,c:"sales",p:"both",t:"115(2)參補目標量提報",s:[]},
+    {m:11,c:"marketing",p:"supp",t:"115(2)版版議價規格表",s:[]},
+    {m:11,c:"marketing",p:"ref",t:"116參行銷提案",s:[]},
+    {m:11,c:"marketing",p:"supp",t:"高高屏補充議價協助",s:[]},
+  ];
+  const cm = new Date().getMonth();
+  return R.map((r, i) => ({
+    id: "t" + i, month: r.m, category: r.c, product: r.p, title: r.t,
+    status: r.m < cm ? "done" : r.m === cm ? "inProgress" : "pending",
+    note: "", url: "", aiTool: null, exp: "",
+    subs: r.s.map((st, si) => ({
+      id: "s" + i + "_" + si, title: st,
+      status: r.m < cm ? "done" : r.m === cm ? "inProgress" : "pending",
+      aiTool: null, note: "", url: "", deadline: "",
+    })),
+  }));
+}
+
+/* ═══════ UI ATOMS ═══════ */
+function Pill({ label, color, active, onClick, small }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? color : "transparent",
+      color: active ? "#fff" : color,
+      border: "1.5px solid " + color,
+      borderRadius: 20,
+      padding: small ? "2px 8px" : "3px 12px",
+      fontSize: small ? 10 : 11,
+      fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
+    }}>{label}</button>
+  );
+}
+
+function Dot({ status, size }) {
+  const s = size || 8;
+  return <span style={{ width: s, height: s, borderRadius: "50%", background: (STM[status] || STM.pending).color, display: "inline-block", flexShrink: 0 }} />;
+}
+
+function IB({ children, onClick, danger, title }) {
+  return (
+    <button onClick={onClick} title={title} style={{
+      background: "none", border: "none", cursor: "pointer",
+      padding: "4px 6px", borderRadius: 6, fontSize: 14,
+      color: danger ? "#EF4444" : "#9CA3AF",
+    }}
+      onMouseOver={e => { e.currentTarget.style.background = danger ? "#FEE2E2" : "#F3F4F6"; }}
+      onMouseOut={e => { e.currentTarget.style.background = "none"; }}
+    >{children}</button>
+  );
+}
+
+function Modal({ open, onClose, title, children, width }) {
+  if (!open) return null;
+  const w = width || 580;
+  return (
+    <div onClick={onClose} style={{
+      position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000,
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: "#fff", borderRadius: 18, width: "100%", maxWidth: w,
+        maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
+      }}>
+        <div style={{
+          padding: "14px 22px", borderBottom: "1px solid #F3F4F6",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          position: "sticky", top: 0, background: "#fff", zIndex: 2, borderRadius: "18px 18px 0 0",
+        }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{title}</h3>
+          <IB onClick={onClose}>✕</IB>
+        </div>
+        <div style={{ padding: "16px 22px" }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Inp(props) {
+  const { style: s, ...rest } = props;
+  return <input {...rest} style={{
+    width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB",
+    borderRadius: 10, fontSize: 13, outline: "none", boxSizing: "border-box", ...(s || {}),
+  }} />;
+}
+
+function Sel({ value, onChange, options, placeholder }) {
+  return (
+    <select value={value} onChange={e => onChange(e.target.value)} style={{
+      width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB",
+      borderRadius: 10, fontSize: 13, outline: "none", background: "#fff",
+      cursor: "pointer", boxSizing: "border-box",
+    }}>
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+    </select>
+  );
+}
+
+function AiPick({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+      {AIT.map(t => (
+        <button key={t.id}
+          onClick={() => onChange(value === t.id ? null : t.id)}
+          style={{
+            display: "flex", alignItems: "center", gap: 3,
+            padding: "4px 9px", borderRadius: 16, fontSize: 10, fontWeight: 600,
+            border: "1.5px solid " + (value === t.id ? t.color : "#E5E7EB"),
+            background: value === t.id ? t.color + "15" : "#fff",
+            color: value === t.id ? t.color : "#6B7280", cursor: "pointer",
+          }}
+        ><span>{t.icon}</span> {t.label}</button>
+      ))}
+    </div>
+  );
+}
+
+const FL = ({ children }) => <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 4 }}>{children}</label>;
+const FW = ({ children }) => <div style={{ marginBottom: 14 }}>{children}</div>;
+
+function getProds(product) {
+  if (product === "both") return [PL.ref, PL.supp];
+  if (PL[product]) return [PL[product]];
+  return [];
+}
+
+/* ═══════ TASK EDITOR ═══════ */
+function TaskEd({ task, onSave, onClose, onDel, isNew }) {
+  const [f, setF] = React.useState({ ...task, subs: (task.subs || []).map(s => ({ ...s })) });
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const setSub = (i, k, v) => setF(p => {
+    const ss = [...p.subs]; ss[i] = { ...ss[i], [k]: v }; return { ...p, subs: ss };
+  });
+  const addSub = () => setF(p => ({
+    ...p, subs: [...p.subs, { id: "sn" + Date.now(), title: "", status: "pending", aiTool: null, note: "", url: "", deadline: "" }],
+  }));
+  const rmSub = (i) => setF(p => ({ ...p, subs: p.subs.filter((_, x) => x !== i) }));
+
+  return (
+    <Modal open={true} title={isNew ? "新增工作項目" : "編輯工作項目"} onClose={onClose}>
+      <FW><FL>項目名稱</FL><Inp value={f.title} onChange={e => set("title", e.target.value)} placeholder="主項目名稱" /></FW>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div><FL>月份</FL><Sel value={f.month} onChange={v => set("month", parseInt(v))} options={MONTHS.map((m, i) => ({ v: i, l: m }))} /></div>
+        <div><FL>產品線</FL><Sel value={f.product} onChange={v => set("product", v)} options={[{ v: "ref", l: "📘 參考書" }, { v: "supp", l: "📙 版版補充" }, { v: "both", l: "📘📙 兩者" }]} /></div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div><FL>分類</FL><Sel value={f.category} onChange={v => set("category", v)} options={Object.entries(CATS).map(([k, v]) => ({ v: k, l: v.icon + " " + v.label }))} /></div>
+        <div><FL>狀態</FL><Sel value={f.status} onChange={v => set("status", v)} options={STC.map(s => ({ v: s, l: STM[s].label }))} /></div>
+      </div>
+      <FW><FL>AI 輔助</FL><AiPick value={f.aiTool} onChange={v => set("aiTool", v)} /></FW>
+      <FW><FL>備註</FL><Inp value={f.note} onChange={e => set("note", e.target.value)} /></FW>
+      <FW><FL>網址</FL><Inp value={f.url} onChange={e => set("url", e.target.value)} placeholder="https://..." /></FW>
+      <FW><FL>📝 經驗累積</FL>
+        <textarea value={f.exp || ""} onChange={e => set("exp", e.target.value)} placeholder="注意事項..."
+          style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, minHeight: 46, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: F }} />
+      </FW>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>子項目</span>
+          <button onClick={addSub} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>＋ 新增</button>
+        </div>
+        {f.subs.length === 0 && <div style={{ fontSize: 12, color: "#D1D5DB", textAlign: "center", padding: 8, fontStyle: "italic" }}>尚無子項目</div>}
+        {f.subs.map((sub, i) => (
+          <div key={sub.id} style={{ background: "#FAFAFA", borderRadius: 12, padding: 16, marginBottom: 8, border: "1px solid #EFEFEF" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700 }}>子項目 {i + 1}</span>
+              <IB onClick={() => rmSub(i)} danger>🗑</IB>
+            </div>
+            <div style={{ marginBottom: 10 }}><FL>名稱</FL><Inp value={sub.title} onChange={e => setSub(i, "title", e.target.value)} placeholder="子項目名稱" /></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div><FL>狀態</FL><Sel value={sub.status} onChange={v => setSub(i, "status", v)} options={STC.map(s => ({ v: s, l: STM[s].label }))} /></div>
+              <div><FL>截止日</FL><input type="date" value={sub.deadline || ""} onChange={e => setSub(i, "deadline", e.target.value)} style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, outline: "none", boxSizing: "border-box" }} /></div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div><FL>備註</FL><Inp value={sub.note || ""} onChange={e => setSub(i, "note", e.target.value)} /></div>
+              <div><FL>網址</FL><Inp value={sub.url || ""} onChange={e => setSub(i, "url", e.target.value)} placeholder="https://..." /></div>
+            </div>
+            <FL>AI 輔助</FL><AiPick value={sub.aiTool} onChange={v => setSub(i, "aiTool", v)} />
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F3F4F6" }}>
+        <div>{!isNew && <button onClick={() => { onDel(task.id); onClose(); }} style={{ background: "none", border: "1.5px solid #EF4444", color: "#EF4444", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>刪除</button>}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+          <button onClick={() => { onSave(f); onClose(); }} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>儲存</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════ TASK CARD ═══════ */
+function TaskCard({ task, onEdit, onToggle }) {
+  const [exp, setExp] = React.useState(false);
+  const prods = getProds(task.product);
+  const ai = task.aiTool ? AIT.find(a => a.id === task.aiTool) : null;
+  const dS = task.subs.filter(s => s.status === "done").length;
+  const tS = task.subs.length;
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 12, padding: "11px 14px", border: "1px solid #F0F0F0", marginBottom: 5 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <button onClick={() => onToggle(task.id)} style={{ marginTop: 2, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+          <Dot status={task.status} size={10} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: task.status === "done" ? "#9CA3AF" : "#1F2937", textDecoration: task.status === "done" ? "line-through" : "none" }}>{task.title}</span>
+            {prods.map(p => <span key={p.label} style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 8, background: p.bg, color: p.color }}>{p.label}</span>)}
+            {ai && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 8, background: ai.color + "15", color: ai.color }}>{ai.icon} {ai.label}</span>}
+            {task.exp && <span title={task.exp} style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 8, background: "#FEF3C7", color: "#92400E", cursor: "help" }}>💡</span>}
+          </div>
+          {task.note && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>📝 {task.note}</div>}
+          {task.url && <a href={task.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: A, display: "block", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>🔗 {task.url}</a>}
+
+          {tS > 0 && (
+            <button onClick={() => setExp(!exp)} style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 11, color: "#6B7280" }}>
+              <span style={{ transform: exp ? "rotate(90deg)" : "rotate(0)", transition: "transform .15s", display: "inline-block" }}>▶</span>
+              {dS}/{tS}
+              <span style={{ height: 4, width: 50, borderRadius: 2, background: "#E5E7EB", overflow: "hidden", display: "inline-block" }}>
+                <span style={{ display: "block", height: "100%", width: (tS ? dS / tS * 100 : 0) + "%", background: "#34D399", borderRadius: 2 }} />
+              </span>
+            </button>
+          )}
+
+          {exp && task.subs.map((sub, si) => {
+            const sa = sub.aiTool ? AIT.find(a => a.id === sub.aiTool) : null;
+            return (
+              <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0 5px 14px", borderLeft: "2px solid #E5E7EB", marginLeft: 4, marginTop: si === 0 ? 5 : 0 }}>
+                <Dot status={sub.status} size={6} />
+                <span style={{ fontSize: 12, flex: 1, color: sub.status === "done" ? "#9CA3AF" : "#374151", textDecoration: sub.status === "done" ? "line-through" : "none" }}>{sub.title}</span>
+                {sub.deadline && <span style={{ fontSize: 9, fontWeight: 700, color: dlColor(sub.deadline), whiteSpace: "nowrap" }}>📅{sub.deadline}</span>}
+                {sa && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 6, background: sa.color + "15", color: sa.color, fontWeight: 600 }}>{sa.icon}</span>}
+                {sub.url && <a href={sub.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗</a>}
+              </div>
+            );
+          })}
+        </div>
+        <IB onClick={() => onEdit(task)}>✏️</IB>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════ WEEKLY REMINDER ═══════ */
+function buildWeekItems(tasks, todos, notes, startDate, endDate) {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const list = [];
+  tasks.forEach(t => {
+    t.subs.forEach(s => {
+      if (s.deadline && s.status !== "done") {
+        const d = new Date(s.deadline);
+        if (d >= startDate && d <= endDate) {
+          list.push({ kind: "排程", src: "sub", taskId: t.id, subId: s.id, cat: (CATS[t.category] || {}).icon || "📋", catLabel: (CATS[t.category] || {}).label || "", mainTask: t.title, subTask: s.title, deadline: s.deadline, status: s.status, overdue: d < now });
+        }
+      }
+    });
+  });
+  (notes || []).forEach(n => {
+    if (n.trackDate && !n.tracked) {
+      const d = new Date(n.trackDate);
+      if (d >= startDate && d <= endDate) {
+        list.push({ kind: "備註", src: "note", noteId: n.id, cat: "📒", catLabel: "產品備註", mainTask: n.period + " " + n.product, subTask: n.description.length > 25 ? n.description.slice(0, 25) + "..." : n.description, deadline: n.trackDate, status: "inProgress", overdue: d < now });
+      }
+    }
+  });
+  return list;
+}
+
+function ReminderTable({ items, handleCheck, label }) {
+  const cols = "28px 50px 44px 1fr 1fr 76px 54px";
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: cols, gap: 4, padding: "6px 8px", marginBottom: 4, background: "#F8FAFC", borderRadius: 8, fontSize: 10, fontWeight: 700, color: "#94A3B8" }}>
+        <span>✓</span><span>類型</span><span>分類</span><span>大項目</span><span>{label}</span><span>截止日</span><span>狀態</span>
+      </div>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: cols, gap: 4, padding: "7px 8px", borderRadius: 8, marginBottom: 2, alignItems: "center", background: it.overdue ? "#FEF2F2" : i % 2 === 0 ? "#FAFCFF" : "#fff" }}>
+          <input type="checkbox" checked={false} onChange={() => handleCheck(it)} style={{ width: 16, height: 16, cursor: "pointer", accentColor: "#059669" }} title="勾選完成" />
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 4px", borderRadius: 6, textAlign: "center", background: it.kind === "排程" ? "#DBEAFE" : it.kind === "備註" ? "#FEF3C7" : "#EDE9FE", color: it.kind === "排程" ? "#1D4ED8" : it.kind === "備註" ? "#92400E" : "#7C3AED" }}>{it.kind}</span>
+          <span style={{ fontSize: 11 }} title={it.catLabel}>{it.cat}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.mainTask}</span>
+          <span style={{ fontSize: 11, color: it.overdue ? "#DC2626" : "#555", fontWeight: it.overdue ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.subTask}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", color: it.deadline ? dlColor(it.deadline) : "#D1D5DB" }}>{it.deadline || "—"}</span>
+          <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 0", borderRadius: 6, textAlign: "center", background: STM[it.status].bg, color: STM[it.status].color }}>{STM[it.status].label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function WeeklyReminder({ tasks, todos, notes, setTasks, setTodos, setNotes }) {
+  const [showNext, setShowNext] = React.useState(false);
+
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(now);
+  weekEnd.setDate(now.getDate() + (7 - now.getDay()));
+  const nextWeekStart = new Date(weekEnd);
+  nextWeekStart.setDate(nextWeekStart.getDate() + 1);
+  const nextWeekEnd = new Date(nextWeekStart);
+  nextWeekEnd.setDate(nextWeekEnd.getDate() + 6);
+
+  const thisWeekSubs = React.useMemo(() => buildWeekItems(tasks, todos, notes, now, weekEnd), [tasks, todos, notes]);
+  const nextWeekSubs = React.useMemo(() => buildWeekItems(tasks, todos, notes, nextWeekStart, nextWeekEnd), [tasks, todos, notes]);
+
+  // Add current-month in-progress tasks (no deadline) to this week only
+  const thisWeekItems = React.useMemo(() => {
+    const list = [...thisWeekSubs];
+    const cm = now.getMonth();
+    tasks.filter(t => t.month === cm && t.status === "inProgress").forEach(t => {
+      if (!list.some(x => x.mainTask === t.title)) {
+        list.push({ kind: "排程", src: "main", taskId: t.id, cat: (CATS[t.category] || {}).icon || "📋", catLabel: (CATS[t.category] || {}).label || "", mainTask: t.title, subTask: "—", deadline: "", status: "inProgress", overdue: false });
+      }
+    });
+    todos.filter(t => !t.done).slice(0, 6).forEach(t => {
+      list.push({ kind: "待辦", src: "todo", todoId: t.id, linkedTaskId: t.linkedTaskId, todoText: t.text, cat: "📝", catLabel: "待辦事項", mainTask: t.project || "零碎待辦", subTask: t.text, deadline: "", status: "pending", overdue: false });
+    });
+    return list.slice(0, 15);
+  }, [thisWeekSubs, tasks, todos]);
+
+  const handleCheck = (it) => {
+    if (it.src === "sub") {
+      setTasks(prev => prev.map(t => {
+        if (t.id !== it.taskId) return t;
+        const ns = t.subs.map(s => s.id === it.subId ? { ...s, status: "done" } : s);
+        const allDone = ns.length > 0 && ns.every(s => s.status === "done");
+        return { ...t, subs: ns, status: allDone ? "done" : t.status };
+      }));
+    } else if (it.src === "main") {
+      setTasks(prev => prev.map(t =>
+        t.id === it.taskId ? { ...t, status: "done", subs: t.subs.map(s => ({ ...s, status: "done" })) } : t
+      ));
+    } else if (it.src === "todo") {
+      setTodos(prev => prev.map(td => td.id === it.todoId ? { ...td, done: true } : td));
+      if (it.linkedTaskId) {
+        setTasks(prev => prev.map(t => {
+          if (t.id !== it.linkedTaskId) return t;
+          const ns = t.subs.map(s => s.title === it.todoText ? { ...s, status: "done" } : s);
+          const allDone = ns.length > 0 && ns.every(s => s.status === "done");
+          return { ...t, subs: ns, status: allDone ? "done" : t.status };
+        }));
+      }
+    } else if (it.src === "note" && setNotes) {
+      setNotes(prev => prev.map(n => n.id === it.noteId ? { ...n, tracked: true } : n));
+    }
+  };
+
+  if (thisWeekItems.length === 0 && nextWeekSubs.length === 0) return null;
+  const overdueCount = thisWeekItems.filter(x => x.overdue).length;
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* This week */}
+      {thisWeekItems.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", marginBottom: 8, border: overdueCount > 0 ? "1.5px solid #FECACA" : "1.5px solid #DBEAFE" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+            <span style={{ fontSize: 18 }}>⏰</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#1E40AF" }}>本週提醒</span>
+            <span style={{ fontSize: 10, color: "#93C5FD", fontWeight: 600 }}>{thisWeekItems.length} 項</span>
+            {overdueCount > 0 && (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 8px", borderRadius: 8, background: "#FEE2E2", color: "#DC2626" }}>{overdueCount} 項逾期</span>
+            )}
+          </div>
+          <ReminderTable items={thisWeekItems} handleCheck={handleCheck} label="本週子項目" />
+        </div>
+      )}
+
+      {/* Next week */}
+      {nextWeekSubs.length > 0 && (
+        <div style={{ background: "#fff", borderRadius: 14, padding: "14px 18px", border: "1.5px solid #E0E7FF" }}>
+          <button onClick={() => setShowNext(!showNext)} style={{
+            display: "flex", alignItems: "center", gap: 6, background: "none",
+            border: "none", cursor: "pointer", padding: 0, width: "100%",
+          }}>
+            <span style={{ fontSize: 16 }}>📅</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#4338CA" }}>下週預覽</span>
+            <span style={{ fontSize: 10, color: "#A5B4FC", fontWeight: 600 }}>{nextWeekSubs.length} 項</span>
+            <span style={{ fontSize: 10, color: "#A5B4FC", marginLeft: 4 }}>進度超前可先完成</span>
+            <span style={{ marginLeft: "auto", fontSize: 12, color: "#A5B4FC", transform: showNext ? "rotate(90deg)" : "rotate(0)", transition: "transform .15s" }}>▶</span>
+          </button>
+          {showNext && (
+            <div style={{ marginTop: 10 }}>
+              <ReminderTable items={nextWeekSubs} handleCheck={handleCheck} label="下週子項目" />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════ TODO PAGE ═══════ */
+function TodoPg({ todos, setTodos, tasks, setTasks }) {
+  const [input, setInput] = React.useState("");
+  const [editId, setEditId] = React.useState(null);
+  const [ef, setEf] = React.useState({});
+
+  const taskOpts = React.useMemo(() => {
+    return [{ v: "", l: "── 不歸屬 ──" }, ...tasks.map(t => ({ v: t.id, l: MONTHS[t.month] + " ┃ " + t.title }))];
+  }, [tasks]);
+
+  const add = () => {
+    if (!input.trim()) return;
+    setTodos(p => [...p, { id: "td" + Date.now(), text: input.trim(), done: false, project: "", url: "", aiTool: null, linkedTaskId: "", createdAt: new Date().toISOString().slice(0, 10) }]);
+    setInput("");
+  };
+  const toggle = (id) => {
+    const todo = todos.find(t => t.id === id);
+    if (!todo) return;
+    const newDone = !todo.done;
+    // Update the todo itself
+    setTodos(p => p.map(t => t.id === id ? { ...t, done: newDone } : t));
+    // Sync back to linked task's sub-item
+    if (todo.linkedTaskId) {
+      setTasks(prev => prev.map(t => {
+        if (t.id !== todo.linkedTaskId) return t;
+        const newSubs = t.subs.map(s => {
+          if (s.title === todo.text) {
+            return { ...s, status: newDone ? "done" : "pending" };
+          }
+          return s;
+        });
+        // Also check if all subs are done → mark parent as done
+        const allDone = newSubs.length > 0 && newSubs.every(s => s.status === "done");
+        const anyInProgress = newSubs.some(s => s.status === "inProgress");
+        let parentStatus = t.status;
+        if (allDone) parentStatus = "done";
+        else if (newDone === false && t.status === "done") parentStatus = "inProgress";
+        return { ...t, subs: newSubs, status: parentStatus };
+      }));
+    }
+  };
+  const rm = (id) => setTodos(p => p.filter(t => t.id !== id));
+
+  const saveEdit = () => {
+    if (ef.linkedTaskId) {
+      const prev = todos.find(t => t.id === editId);
+      if (!prev || prev.linkedTaskId !== ef.linkedTaskId) {
+        setTasks(pr => pr.map(t => {
+          if (t.id !== ef.linkedTaskId) return t;
+          if (t.subs.some(s => s.title === ef.text)) return t;
+          return { ...t, subs: [...t.subs, { id: "std" + Date.now(), title: ef.text, status: ef.done ? "done" : "pending", aiTool: ef.aiTool, note: "來自待辦", url: ef.url || "", deadline: "" }] };
+        }));
+      }
+    }
+    setTodos(p => p.map(t => t.id === editId ? ef : t));
+    setEditId(null);
+  };
+
+  const active = todos.filter(t => !t.done);
+  const done = todos.filter(t => t.done);
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
+        <Inp value={input} onChange={e => setInput(e.target.value)} placeholder="快速新增待辦..." onKeyDown={e => e.key === "Enter" && add()} style={{ flex: 1 }} />
+        <button onClick={add} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>＋</button>
+      </div>
+
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>進行中 ({active.length})</div>
+      {active.length === 0 && <div style={{ fontSize: 12, color: "#D1D5DB", textAlign: "center", padding: 20, fontStyle: "italic" }}>沒有待辦 🎉</div>}
+      {active.map(td => {
+        const lk = td.linkedTaskId ? tasks.find(x => x.id === td.linkedTaskId) : null;
+        const lkName = lk ? (MONTHS[lk.month] + "—" + lk.title) : null;
+        return (
+          <div key={td.id} style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", marginBottom: 5, border: "1px solid #F0F0F0", display: "flex", alignItems: "center", gap: 10 }}>
+            <input type="checkbox" checked={false} onChange={() => toggle(td.id)} style={{ cursor: "pointer", width: 16, height: 16, accentColor: A, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600 }}>{td.text}</div>
+              <div style={{ display: "flex", gap: 5, marginTop: 3, flexWrap: "wrap" }}>
+                {lkName && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: "#DBEAFE", color: "#1D4ED8" }}>📌 {lkName}</span>}
+                {td.project && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: "#EDE9FE", color: "#7C3AED" }}>📂 {td.project}</span>}
+                {td.url && <a href={td.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗</a>}
+              </div>
+            </div>
+            <IB onClick={() => { setEditId(td.id); setEf({ ...td }); }}>✏️</IB>
+            <IB onClick={() => rm(td.id)} danger>✕</IB>
+          </div>
+        );
+      })}
+
+      {done.length > 0 && (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#9CA3AF", marginTop: 18, marginBottom: 8 }}>已完成 ({done.length})</div>
+          {done.map(td => (
+            <div key={td.id} style={{ background: "#FAFAFA", borderRadius: 10, padding: "8px 14px", marginBottom: 4, border: "1px solid #F0F0F0", display: "flex", alignItems: "center", gap: 10, opacity: 0.6 }}>
+              <input type="checkbox" checked={true} onChange={() => toggle(td.id)} style={{ cursor: "pointer", width: 16, height: 16, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontSize: 13, textDecoration: "line-through", color: "#9CA3AF" }}>{td.text}</span>
+              <IB onClick={() => rm(td.id)} danger>✕</IB>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!editId} onClose={() => setEditId(null)} title="編輯待辦" width={480}>
+        <FW><FL>內容</FL><Inp value={ef.text || ""} onChange={e => setEf(p => ({ ...p, text: e.target.value }))} /></FW>
+        <FW>
+          <FL>📌 歸屬工作項目</FL>
+          <Sel value={ef.linkedTaskId || ""} onChange={v => setEf(p => ({ ...p, linkedTaskId: v }))} options={taskOpts} />
+          {ef.linkedTaskId && <div style={{ fontSize: 10, color: "#059669", marginTop: 4 }}>✓ 儲存後自動加入子項目</div>}
+        </FW>
+        <FW><FL>專案</FL><Inp value={ef.project || ""} onChange={e => setEf(p => ({ ...p, project: e.target.value }))} placeholder="AI研究..." /></FW>
+        <FW><FL>網址</FL><Inp value={ef.url || ""} onChange={e => setEf(p => ({ ...p, url: e.target.value }))} placeholder="https://..." /></FW>
+        <FW><FL>AI</FL><AiPick value={ef.aiTool} onChange={v => setEf(p => ({ ...p, aiTool: v }))} /></FW>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 10 }}>
+          <button onClick={() => setEditId(null)} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+          <button onClick={saveEdit} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>儲存</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════ TOOLS PAGE ═══════ */
+/* ═══════ TOOLS PAGE ═══════ */
+const TOOL_CATS = [
+  { v: "sap", l: "💻 SAP/系統", color: "#0369A1" },
+  { v: "shipping", l: "📦 出貨", color: "#B45309" },
+  { v: "print", l: "🖨️ 印量", color: "#7C3AED" },
+  { v: "sales", l: "📊 銷售", color: "#059669" },
+  { v: "marketing", l: "📣 行銷", color: "#DC2626" },
+  { v: "contact", l: "👤 窗口/聯絡人", color: "#D97706" },
+  { v: "ai", l: "🤖 AI工具", color: "#4285F4" },
+  { v: "other", l: "📎 其他", color: "#6B7280" },
+];
+
+function ToolsPg({ tools, setTools }) {
+  const [editId, setEditId] = React.useState(null);
+  const [ef, setEf] = React.useState({});
+  const [search, setSearch] = React.useState("");
+  const [filterCat, setFilterCat] = React.useState("all");
+
+  const add = () => {
+    setEf({ id: "tl" + Date.now(), name: "", purpose: "", url: "", aiTool: null, tags: "", category: "other", createdAt: new Date().toISOString().slice(0, 10) });
+    setEditId("new");
+  };
+  const saveEdit = () => {
+    if (editId === "new") { setTools(p => [...p, ef]); } else { setTools(p => p.map(t => t.id === editId ? ef : t)); }
+    setEditId(null);
+  };
+  const rm = (id) => setTools(p => p.filter(t => t.id !== id));
+
+  const filtered = tools.filter(t => {
+    if (filterCat !== "all" && (t.category || "other") !== filterCat) return false;
+    if (search) {
+      const s = search.toLowerCase();
+      return (t.name + t.purpose + t.tags + (t.aiTool || "") + (t.category || "")).toLowerCase().includes(s);
+    }
+    return true;
+  });
+
+  // Group by category for display
+  const grouped = {};
+  filtered.forEach(t => {
+    const cat = t.category || "other";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(t);
+  });
+
+  return (
+    <div>
+      {/* Search + filter + add */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <Inp value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 搜尋工具..." style={{ flex: 1, minWidth: 150 }} />
+        <button onClick={add} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>＋ 新增</button>
+      </div>
+      <div style={{ display: "flex", gap: 4, marginBottom: 14, flexWrap: "wrap" }}>
+        <Pill label="全部" color="#6B7280" active={filterCat === "all"} onClick={() => setFilterCat("all")} small />
+        {TOOL_CATS.map(c => {
+          const count = tools.filter(t => (t.category || "other") === c.v).length;
+          if (count === 0 && filterCat !== c.v) return null;
+          return <Pill key={c.v} label={c.l + " " + count} color={c.color} active={filterCat === c.v} onClick={() => setFilterCat(filterCat === c.v ? "all" : c.v)} small />;
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "#D1D5DB" }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>🧰</div>
+          <div style={{ fontSize: 13 }}>無符合的工具</div>
+        </div>
+      )}
+
+      {/* Grouped list */}
+      {(filterCat === "all" ? TOOL_CATS : TOOL_CATS.filter(c => c.v === filterCat)).map(cat => {
+        const items = grouped[cat.v];
+        if (!items || items.length === 0) return null;
+        return (
+          <div key={cat.v} style={{ marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, paddingBottom: 4, borderBottom: "2px solid #E5E7EB" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: cat.color }}>{cat.l}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, background: "#F3F4F6", color: "#6B7280", padding: "1px 6px", borderRadius: 6 }}>{items.length}</span>
+            </div>
+            {items.map(tool => {
+              const ai = tool.aiTool ? AIT.find(a => a.id === tool.aiTool) : null;
+              return (
+                <div key={tool.id} style={{
+                  background: "#fff", borderRadius: 10, padding: "10px 14px", marginBottom: 4,
+                  border: "1px solid #F0F0F0", display: "flex", alignItems: "flex-start", gap: 10,
+                }}>
+                  <span style={{ fontSize: 16, marginTop: 1 }}>{ai ? ai.icon : "🔧"}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#1F2937" }}>{tool.name || "未命名"}</span>
+                      {ai && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: ai.color + "15", color: ai.color }}>{ai.label}</span>}
+                    </div>
+                    {tool.purpose && <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.5 }}>{tool.purpose.length > 80 ? tool.purpose.slice(0, 80) + "..." : tool.purpose}</div>}
+                    <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
+                      {tool.url && <a href={tool.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗 連結</a>}
+                      {tool.tags && tool.tags.split(",").filter(Boolean).slice(0, 4).map((tg, i) => (
+                        <span key={i} style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: "#EDE9FE", color: "#7C3AED" }}>{tg.trim()}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 1, flexShrink: 0 }}>
+                    <IB onClick={() => { setEf({ ...tool }); setEditId(tool.id); }}>✏️</IB>
+                    <IB onClick={() => rm(tool.id)} danger>✕</IB>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* Editor modal */}
+      <Modal open={!!editId} onClose={() => setEditId(null)} title={editId === "new" ? "新增工具" : "編輯工具"} width={460}>
+        <FW><FL>工具名稱</FL><Inp value={ef.name || ""} onChange={e => setEf(p => ({ ...p, name: e.target.value }))} placeholder="印量計算器" /></FW>
+        <FW>
+          <FL>分類</FL>
+          <Sel value={ef.category || "other"} onChange={v => setEf(p => ({ ...p, category: v }))} options={TOOL_CATS.map(c => ({ v: c.v, l: c.l }))} />
+        </FW>
+        <FW><FL>用途說明</FL>
+          <textarea value={ef.purpose || ""} onChange={e => setEf(p => ({ ...p, purpose: e.target.value }))} placeholder="做什麼、用在哪..."
+            style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, minHeight: 60, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: F }} />
+        </FW>
+        <FW><FL>網址</FL><Inp value={ef.url || ""} onChange={e => setEf(p => ({ ...p, url: e.target.value }))} placeholder="https://..." /></FW>
+        <FW><FL>AI 平台</FL><AiPick value={ef.aiTool} onChange={v => setEf(p => ({ ...p, aiTool: v }))} /></FW>
+        <FW><FL>標籤（逗號分隔）</FL><Inp value={ef.tags || ""} onChange={e => setEf(p => ({ ...p, tags: e.target.value }))} placeholder="印務,自動化..." /></FW>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, paddingTop: 10 }}>
+          <button onClick={() => setEditId(null)} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+          <button onClick={saveEdit} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>儲存</button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════ PA GUIDE ═══════ */
+function PaGuide({ open, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose} title="⚡ Power Automate 串接教學" width={600}>
+      <div style={{ fontSize: 13, lineHeight: 1.9, color: "#374151" }}>
+        <div style={{ background: "#EFF6FF", borderRadius: 12, padding: "14px 18px", marginBottom: 16, border: "1px solid #BFDBFE" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1E40AF", marginBottom: 4 }}>架構</div>
+          <div style={{ fontSize: 12 }}>Microsoft To Do ←→ Power Automate ←→ 此系統（JSON）</div>
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>方案一：簡單版（免費 PA）</div>
+        <div style={{ background: "#FAFAFA", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, lineHeight: 1.8 }}>
+          1. Power Automate → 建新 Flow<br />
+          2. 觸發：「當 To Do 中的工作建立時」<br />
+          3. 動作：「建立檔案」→ OneDrive 指定資料夾<br />
+          4. 內容格式：<br />
+          <code style={{ display: "block", background: "#1F2937", color: "#34D399", padding: 10, borderRadius: 8, fontSize: 11, marginTop: 4, whiteSpace: "pre-wrap" }}>
+{JSON.stringify({ id: "td-@{id}", text: "@{title}", done: false, project: "365 To Do", linkedTaskId: "", createdAt: "@{date}" }, null, 2)}
+          </code>
+          <br />5. 定期下載 → 本系統「💾匯入」
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>方案二：排程批次匯出</div>
+        <div style={{ background: "#FAFAFA", borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 12, lineHeight: 1.8 }}>
+          1. 排程觸發：每天/每週<br />
+          2.「列出 To Do 工作」<br />
+          3.「套用到每一個」→ 組成 JSON 陣列<br />
+          4.「建立檔案」存到 OneDrive<br />
+          5. 下載後匯入
+        </div>
+
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>方案三：即時雙向（需 Premium）</div>
+        <div style={{ background: "#FEF3C7", borderRadius: 10, padding: "12px 16px", fontSize: 12, lineHeight: 1.8 }}>
+          部署此系統到 Vercel + Supabase 後，PA 可透過 HTTP 連接器直接 POST 到你的 API，實現即時同步。
+        </div>
+
+        <div style={{ marginTop: 16, padding: "12px 16px", background: "#F0FDF4", borderRadius: 10, border: "1px solid #BBF7D0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#166534" }}>💡 建議從方案一開始</div>
+          <div style={{ fontSize: 11, color: "#374151", marginTop: 4 }}>搜尋「Microsoft To Do」連接器即可。</div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════ REPORT + CLONE + DATA ═══════ */
+function ReportMd({ open, onClose, tasks, month }) {
+  const [dlUrl, setDlUrl] = React.useState(null);
+  const [dlName, setDlName] = React.useState("");
+  const mt = tasks.filter(t => t.month === month);
+  const nxt = tasks.filter(t => t.month === (month + 1) % 12);
+  const d = mt.filter(t => t.status === "done");
+  const ip = mt.filter(t => t.status === "inProgress");
+  const pd = mt.filter(t => t.status === "pending");
+  const fm = t => (t.product === "both" ? "[參+補]" : t.product === "ref" ? "[參]" : "[補]") + " " + t.title;
+
+  const txt = React.useMemo(() => {
+    let r = "115年 " + MONTHS[month] + " 月報\n";
+    r += "報告日期：" + new Date().toISOString().slice(0, 10) + "\n";
+    r += "────────────────────\n";
+    r += "總" + mt.length + " 完成" + d.length + " 進行" + ip.length + " 待處理" + pd.length + "\n";
+    if (d.length) { r += "\n【完成】\n"; d.forEach(t => { r += "  ✓ " + fm(t) + "\n"; }); }
+    if (ip.length) { r += "\n【進行中】\n"; ip.forEach(t => { r += "  ▸ " + fm(t) + "\n"; t.subs.filter(s => s.status !== "done").forEach(s => { r += "    - " + s.title + (s.deadline ? " (" + s.deadline + ")" : "") + "\n"; }); }); }
+    if (pd.length) { r += "\n【待處理】\n"; pd.forEach(t => { r += "  ○ " + fm(t) + "\n"; }); }
+    if (nxt.length) { r += "\n【下月 " + MONTHS[(month + 1) % 12] + "】\n"; nxt.forEach(t => { r += "  → " + fm(t) + "\n"; }); }
+    return r;
+  }, [mt, d, ip, pd, nxt, month]);
+
+  // Group tasks by category for Excel format
+  const catGroups = React.useMemo(() => {
+    const groups = {};
+    mt.forEach(t => {
+      const catLabel = t.product === "both" ? "共通/其他"
+        : t.product === "ref" ? "參考書銷售"
+        : "補充銷售";
+      if (!groups[catLabel]) groups[catLabel] = [];
+
+      // Build progress description
+      let progress = "";
+      if (t.subs.length > 0) {
+        progress = t.subs.map((s, i) => {
+          let line = (i + 1) + "." + s.title;
+          if (s.status === "done") line += "（已完成）";
+          return line;
+        }).join("\n");
+      } else {
+        progress = STM[t.status].label;
+      }
+
+      // Determine deadline text
+      let deadlineText = "";
+      const activeSubs = t.subs.filter(s => s.deadline);
+      if (activeSubs.length > 0) {
+        const latest = activeSubs.sort((a, b) => b.deadline.localeCompare(a.deadline))[0];
+        deadlineText = latest.deadline;
+      }
+
+      groups[catLabel].push({
+        title: t.title,
+        deadline: deadlineText,
+        completed: t.status === "done" ? new Date().toISOString().slice(0, 10) : "",
+        progress: progress,
+      });
+    });
+    return groups;
+  }, [mt]);
+
+  const dlXlsx = () => {
+    // Generate Excel XML Spreadsheet
+    const today = new Date();
+    const yy = today.getFullYear() - 1911;
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const dateStr = yy + mm + dd;
+
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\n/g, "&#10;");
+
+    let rows = [];
+
+    // Header row
+    rows.push({
+      cells: [
+        { val: "營一處行企部行企組重要工作追蹤表（更新日期：" + dateStr + "）", merge: 6, style: "header" },
+      ],
+    });
+
+    // Column headers
+    rows.push({
+      cells: [
+        { val: "類別", style: "colHead" },
+        { val: "內容", style: "colHead" },
+        { val: "配合\n單位", style: "colHead" },
+        { val: "預定\n完成日期", style: "colHead" },
+        { val: "實際\n完成日", style: "colHead" },
+        { val: "進度說明", style: "colHead" },
+      ],
+    });
+
+    // Data rows grouped by category
+    Object.entries(catGroups).forEach(([catLabel, items]) => {
+      items.forEach((item, idx) => {
+        rows.push({
+          cells: [
+            { val: idx === 0 ? catLabel : "", style: idx === 0 ? "catFirst" : "cat" },
+            { val: item.title, style: "content" },
+            { val: "", style: "content" },
+            { val: item.deadline, style: "content" },
+            { val: item.completed, style: "content" },
+            { val: item.progress, style: "progress" },
+          ],
+        });
+      });
+    });
+
+    // Next month section
+    if (nxt.length > 0) {
+      rows.push({
+        cells: [
+          { val: "下月追蹤\n" + MONTHS[(month + 1) % 12], merge: 6, style: "nextMonth" },
+        ],
+      });
+      nxt.forEach(t => {
+        const prod = t.product === "both" ? "共通" : t.product === "ref" ? "參考書" : "補充";
+        rows.push({
+          cells: [
+            { val: prod, style: "cat" },
+            { val: t.title, style: "content" },
+            { val: "", style: "content" },
+            { val: "", style: "content" },
+            { val: "", style: "content" },
+            { val: "", style: "progress" },
+          ],
+        });
+      });
+    }
+
+    // Build XML
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<?mso-application progid="Excel.Sheet"?>\n';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+    xml += ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+
+    // Styles
+    xml += '<Styles>\n';
+    xml += '<Style ss:ID="Default"><Font ss:FontName="Microsoft JhengHei" ss:Size="12"/><Alignment ss:Vertical="Center" ss:WrapText="1"/></Style>\n';
+    xml += '<Style ss:ID="header"><Font ss:FontName="Times New Roman" ss:Size="18" ss:Bold="1"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/></Style>\n';
+    xml += '<Style ss:ID="colHead"><Font ss:FontName="Times New Roman" ss:Size="12" ss:Bold="1"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="2"/><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>\n';
+    xml += '<Style ss:ID="catFirst"><Font ss:FontName="Microsoft JhengHei" ss:Size="12" ss:Bold="1"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>\n';
+    xml += '<Style ss:ID="cat"><Font ss:FontName="Microsoft JhengHei" ss:Size="12"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>\n';
+    xml += '<Style ss:ID="content"><Font ss:FontName="Microsoft JhengHei" ss:Size="12"/><Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>\n';
+    xml += '<Style ss:ID="progress"><Font ss:FontName="Microsoft JhengHei" ss:Size="12"/><Alignment ss:Horizontal="Left" ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1"/><Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="2"/></Borders></Style>\n';
+    xml += '<Style ss:ID="nextMonth"><Font ss:FontName="Times New Roman" ss:Size="14" ss:Bold="1"/><Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/><Interior ss:Color="#DBEAFE" ss:Pattern="Solid"/></Style>\n';
+    xml += '</Styles>\n';
+
+    xml += '<Worksheet ss:Name="瑋育">\n';
+    xml += '<Table ss:DefaultRowHeight="36">\n';
+    xml += '<Column ss:Width="100"/>\n';  // A
+    xml += '<Column ss:Width="180"/>\n';  // B
+    xml += '<Column ss:Width="80"/>\n';   // C
+    xml += '<Column ss:Width="100"/>\n';  // D
+    xml += '<Column ss:Width="80"/>\n';   // E
+    xml += '<Column ss:Width="500"/>\n';  // F
+
+    rows.forEach(row => {
+      xml += '<Row ss:AutoFitHeight="1">\n';
+      row.cells.forEach(cell => {
+        const styleAttr = cell.style ? ' ss:StyleID="' + cell.style + '"' : '';
+        const mergeAttr = cell.merge ? ' ss:MergeAcross="' + (cell.merge - 1) + '"' : '';
+        xml += '<Cell' + styleAttr + mergeAttr + '>';
+        xml += '<Data ss:Type="String">' + esc(cell.val) + '</Data>';
+        xml += '</Cell>\n';
+      });
+      xml += '</Row>\n';
+    });
+
+    xml += '</Table>\n</Worksheet>\n</Workbook>';
+
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+    const url = URL.createObjectURL(blob);
+    const fname = "行企組重要工作進度追蹤表" + yy + mm.padStart(2, "0") + ".xls";
+    setDlUrl(url);
+    setDlName(fname);
+    // Try auto download
+    try {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) { /* fallback link shown below */ }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={"📋 " + MONTHS[month] + " 月報"} width={620}>
+      <pre style={{ background: "#FAFAFA", border: "1px solid #E5E7EB", borderRadius: 12, padding: 14, fontSize: 12, lineHeight: 1.7, whiteSpace: "pre-wrap", maxHeight: 300, overflow: "auto", fontFamily: F }}>{txt}</pre>
+      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+        <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(txt); }} style={{ background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>📋 複製文字</button>
+        <button onClick={(e) => { e.stopPropagation(); dlXlsx(); }} style={{ background: "#059669", color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+          📥 下載 Excel（追蹤表格式）
+        </button>
+      </div>
+      {dlUrl && (
+        <div style={{ marginTop: 10, padding: "10px 14px", background: "#ECFDF5", borderRadius: 10, border: "1px solid #A7F3D0" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#059669", marginBottom: 4 }}>✓ 檔案已產生</div>
+          <a href={dlUrl} download={dlName} target="_blank" rel="noreferrer"
+            style={{ fontSize: 13, fontWeight: 700, color: "#059669", textDecoration: "underline", cursor: "pointer" }}
+            onClick={e => e.stopPropagation()}>
+            📥 點此下載：{dlName}
+          </a>
+        </div>
+      )}
+      <div style={{ marginTop: 10, padding: "10px 12px", background: "#F0F9FF", borderRadius: 8, border: "1px solid #BAE6FD", fontSize: 11, color: "#374151", lineHeight: 1.6 }}>
+        💡 Excel 檔格式與「行企組重要工作進度追蹤表」相同：類別 / 內容 / 配合單位 / 預定完成日 / 實際完成日 / 進度說明。用 Excel 開啟後可直接編輯微調。
+      </div>
+    </Modal>
+  );
+}
+
+function DataMd({ open, onClose, tasks, todos, tools, notes, mktg, memos, setTasks, setTodos, setTools, setNotes, setMktg, setMemos }) {
+  const exp = () => {
+    const d = JSON.stringify({ tasks, todos, tools, notes, mktg, memos, v: "v5" }, null, 2);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([d], { type: "application/json" }));
+    a.download = "備份_" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+  };
+  const imp = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => {
+      try {
+        const d = JSON.parse(ev.target.result);
+        if (d.tasks) setTasks(d.tasks);
+        if (d.todos) setTodos(d.todos);
+        if (d.tools) setTools(d.tools);
+        if (d.notes) setNotes(d.notes);
+        if (d.mktg) setMktg(d.mktg);
+        if (d.memos) setMemos(d.memos);
+        alert("匯入成功！");
+        onClose();
+      } catch (err) { alert("格式錯誤"); }
+    };
+    r.readAsText(f);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="💾 資料管理" width={460}>
+      <FW>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>匯出</div>
+        <button onClick={exp} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📥 下載 JSON</button>
+      </FW>
+      <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 6 }}>匯入</div>
+        <label style={{ display: "inline-block", background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          📤 選檔<input type="file" accept=".json" onChange={imp} style={{ display: "none" }} />
+        </label>
+      </div>
+      <div style={{ marginTop: 16, padding: "12px 14px", background: "#F0FDF4", borderRadius: 10, border: "1px solid #BBF7D0", fontSize: 11, color: "#374151", lineHeight: 1.7 }}>
+        <b>現在：</b>同帳號可讀。<b>建議：</b>定期備份。<b>改版：</b>新對話→貼碼改→匯入。
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════ PRODUCT NOTES PAGE 📒 ═══════ */
+const PERIODS = [
+  "114(一)", "114(二)", "115(一)", "115(二)",
+  "116(一)", "116(二)", "117(一)", "117(二)",
+];
+const PROD_CATS = [
+  { v: "ref", l: "📘 參考書", color: "#1B6B93", bg: "#E8F4F8" },
+  { v: "supp", l: "📙 版版補充教材", color: "#E07A5F", bg: "#FDF0ED" },
+];
+const NOTE_TYPES = [
+  { v: "permanent", l: "🔄 常態", color: "#0369A1", bg: "#E0F2FE" },
+  { v: "temporary", l: "⚡ 臨時", color: "#B45309", bg: "#FEF3C7" },
+];
+const NOTE_TABS = [
+  { id: "product", l: "📒 產品備註", icon: "📒", desc: "與編輯討論後的產品事項" },
+  { id: "print", l: "🖨️ 印量備註", icon: "🖨️", desc: "印量相關注意事項" },
+  { id: "scrap", l: "♻️ 報廢備註", icon: "♻️", desc: "報廢相關注意事項" },
+  { id: "shipping", l: "📦 出貨備註", icon: "📦", desc: "出貨相關注意事項" },
+  { id: "marketing", l: "📣 行銷備註", icon: "📣", desc: "行銷相關注意事項" },
+  { id: "announce", l: "📢 公告備註", icon: "📢", desc: "公告相關注意事項" },
+  { id: "budget", l: "💰 預算備註", icon: "💰", desc: "預算相關注意事項" },
+  { id: "shop", l: "🛒 商城備註", icon: "🛒", desc: "商城銷售相關注意事項" },
+];
+
+function NoteCard({ note, onEdit, onDelete, onToggleTrack }) {
+  const nt = NOTE_TYPES.find(x => x.v === note.noteType) || NOTE_TYPES[1];
+  const pc = PROD_CATS.find(x => x.v === note.prodCat);
+  const trackDue = note.trackDate && !note.tracked;
+  const trackOverdue = trackDue && new Date(note.trackDate) < new Date();
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 12, padding: "14px 16px", marginBottom: 6,
+      border: trackOverdue ? "1.5px solid #FECACA" : "1px solid #F0F0F0",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "#F1F5F9", color: "#475569" }}>{note.period}</span>
+            {pc && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: pc.bg, color: pc.color }}>{pc.l}</span>}
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#1F2937" }}>{note.product || "未填產品"}</span>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: nt.bg, color: nt.color }}>{nt.l}</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, marginBottom: 6 }}>{note.description}</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10, color: "#9CA3AF" }}>
+            <span>建立：{note.createdAt}</span>
+            {note.trackDate && (
+              <span style={{ fontWeight: 700, color: trackOverdue ? "#DC2626" : trackDue ? "#D97706" : "#059669" }}>
+                📅 追蹤：{note.trackDate} {note.tracked ? "✓ 已追蹤" : trackOverdue ? "⚠ 逾期" : "待追蹤"}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+          {trackDue && (
+            <button onClick={() => onToggleTrack(note.id)} style={{
+              background: "#D1FAE5", border: "none", borderRadius: 8, padding: "4px 10px",
+              fontSize: 10, fontWeight: 700, color: "#059669", cursor: "pointer",
+            }}>✓ 完成</button>
+          )}
+          <IB onClick={() => onEdit(note)}>✏️</IB>
+          <IB onClick={() => onDelete(note.id)} danger>✕</IB>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NoteEditor({ open, onClose, ef, setEf, onSave, onDelete, isNew, tabId }) {
+  if (!open) return null;
+  const tabInfo = NOTE_TABS.find(t => t.id === tabId) || NOTE_TABS[0];
+  return (
+    <Modal open={true} onClose={onClose} title={(isNew ? "新增" : "編輯") + tabInfo.l.slice(2)} width={520}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div>
+          <FL>期別</FL>
+          <Sel value={ef.period || ""} onChange={v => setEf(p => ({ ...p, period: v }))} options={PERIODS.map(p => ({ v: p, l: p }))} />
+        </div>
+        <div>
+          <FL>產品類別</FL>
+          <Sel value={ef.prodCat || ""} onChange={v => setEf(p => ({ ...p, prodCat: v }))} options={PROD_CATS.map(c => ({ v: c.v, l: c.l }))} />
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div>
+          <FL>產品名稱（冊/系列）</FL>
+          <Inp value={ef.product || ""} onChange={e => setEf(p => ({ ...p, product: e.target.value }))} placeholder="國中數學第3冊..." />
+        </div>
+        <div>
+          <FL>備註類型</FL>
+          <Sel value={ef.noteType || ""} onChange={v => setEf(p => ({ ...p, noteType: v }))} options={NOTE_TYPES.map(t => ({ v: t.v, l: t.l }))} />
+        </div>
+      </div>
+      <FW>
+        <FL>{tabInfo.desc}</FL>
+        <textarea value={ef.description || ""} onChange={e => setEf(p => ({ ...p, description: e.target.value }))}
+          placeholder={tabId === "print" ? "印量調整原因、數量變更..." : tabId === "scrap" ? "報廢原因、數量、注意事項..." : "編輯討論結果、要注意的事..."}
+          style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, minHeight: 80, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: F }} />
+      </FW>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+        <div><FL>建立日期</FL><input type="date" value={ef.createdAt || ""} onChange={e => setEf(p => ({ ...p, createdAt: e.target.value }))} style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, outline: "none", boxSizing: "border-box" }} /></div>
+        <div><FL>追蹤日期</FL><input type="date" value={ef.trackDate || ""} onChange={e => setEf(p => ({ ...p, trackDate: e.target.value }))} style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, outline: "none", boxSizing: "border-box" }} /></div>
+      </div>
+      {ef.trackDate && (
+        <div style={{ fontSize: 11, color: "#059669", marginBottom: 12, padding: "8px 12px", background: "#F0FDF4", borderRadius: 8 }}>
+          ✓ 新增時會自動建立待辦事項追蹤
+        </div>
+      )}
+      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F3F4F6" }}>
+        <div>{!isNew && <button onClick={() => { onDelete(ef.id); onClose(); }} style={{ background: "none", border: "1.5px solid #EF4444", color: "#EF4444", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>刪除</button>}</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onClose} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+          <button onClick={onSave} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>儲存</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function ProductNotesPg({ notes, setNotes, setTodos }) {
+  const [subTab, setSubTab] = React.useState("product");
+  const [editId, setEditId] = React.useState(null);
+  const [ef, setEf] = React.useState({});
+  const [filterType, setFilterType] = React.useState("all");
+  const [filterPeriod, setFilterPeriod] = React.useState("all");
+  const [filterProdCat, setFilterProdCat] = React.useState("all");
+  const [search, setSearch] = React.useState("");
+
+  const curNotes = notes.filter(n => (n.category || "product") === subTab);
+
+  const add = () => {
+    setEf({
+      id: "pn" + Date.now(), category: subTab,
+      period: "115(一)", prodCat: "ref", product: "",
+      noteType: "temporary", description: "",
+      createdAt: new Date().toISOString().slice(0, 10),
+      trackDate: "", tracked: false,
+    });
+    setEditId("new");
+  };
+
+  const saveEdit = () => {
+    const item = { ...ef, category: ef.category || subTab };
+    if (editId === "new") {
+      setNotes(p => [...p, item]);
+      if (item.trackDate) {
+        const tabLabel = (NOTE_TABS.find(t => t.id === subTab) || {}).l || "備註";
+        setTodos(p => [...p, {
+          id: "td-pn" + Date.now(),
+          text: "【" + tabLabel.slice(2) + "追蹤】" + item.product + "：" + (item.description.length > 25 ? item.description.slice(0, 25) + "..." : item.description),
+          done: false,
+          project: tabLabel.slice(2) + " " + item.period,
+          url: "", aiTool: null, linkedTaskId: "",
+          createdAt: new Date().toISOString().slice(0, 10),
+        }]);
+      }
+    } else {
+      setNotes(p => p.map(n => n.id === editId ? item : n));
+    }
+    setEditId(null);
+  };
+
+  const rm = (id) => setNotes(p => p.filter(n => n.id !== id));
+  const toggleTracked = (id) => setNotes(p => p.map(n => n.id === id ? { ...n, tracked: !n.tracked } : n));
+
+  const filtered = curNotes.filter(n => {
+    if (filterType !== "all" && n.noteType !== filterType) return false;
+    if (filterPeriod !== "all" && n.period !== filterPeriod) return false;
+    if (filterProdCat !== "all" && n.prodCat !== filterProdCat) return false;
+    if (search && !(n.product + n.description).toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const permCount = curNotes.filter(n => n.noteType === "permanent").length;
+  const tempCount = curNotes.filter(n => n.noteType === "temporary").length;
+  const pendingTrack = curNotes.filter(n => n.trackDate && !n.tracked).length;
+
+  return (
+    <div>
+      {/* Sub-tabs */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 14, borderBottom: "2px solid #E5E7EB", paddingBottom: 8 }}>
+        {NOTE_TABS.map(tab => {
+          const count = notes.filter(n => (n.category || "product") === tab.id).length;
+          const pending = notes.filter(n => (n.category || "product") === tab.id && n.trackDate && !n.tracked).length;
+          return (
+            <button key={tab.id} onClick={() => { setSubTab(tab.id); setFilterType("all"); setFilterPeriod("all"); setFilterProdCat("all"); setSearch(""); }}
+              style={{
+                background: subTab === tab.id ? "#fff" : "transparent",
+                border: subTab === tab.id ? "1.5px solid " + A : "1.5px solid transparent",
+                borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: subTab === tab.id ? 700 : 500,
+                cursor: "pointer", color: subTab === tab.id ? A : "#6B7280",
+                display: "flex", alignItems: "center", gap: 5,
+                boxShadow: subTab === tab.id ? "0 2px 6px rgba(0,0,0,0.06)" : "none",
+              }}>
+              <span>{tab.icon}</span>
+              <span>{tab.l.slice(2)}</span>
+              {count > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "#F3F4F6", color: "#6B7280" }}>{count}</span>}
+              {pending > 0 && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 6, background: "#FEE2E2", color: "#DC2626" }}>{pending}</span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+        <div style={{ background: "#E0F2FE", borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ fontSize: 14 }}>🔄</span>
+          <div><div style={{ fontSize: 15, fontWeight: 800, color: "#0369A1" }}>{permCount}</div><div style={{ fontSize: 8, color: "#0369A1" }}>常態</div></div>
+        </div>
+        <div style={{ background: "#FEF3C7", borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ fontSize: 14 }}>⚡</span>
+          <div><div style={{ fontSize: 15, fontWeight: 800, color: "#B45309" }}>{tempCount}</div><div style={{ fontSize: 8, color: "#B45309" }}>臨時</div></div>
+        </div>
+        {pendingTrack > 0 && (
+          <div style={{ background: "#FEE2E2", borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
+            <span style={{ fontSize: 14 }}>📅</span>
+            <div><div style={{ fontSize: 15, fontWeight: 800, color: "#DC2626" }}>{pendingTrack}</div><div style={{ fontSize: 8, color: "#DC2626" }}>待追蹤</div></div>
+          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Inp value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 搜尋..." style={{ flex: 1, minWidth: 140 }} />
+        <Sel value={filterPeriod} onChange={v => setFilterPeriod(v)} options={[{ v: "all", l: "全部期別" }, ...PERIODS.map(p => ({ v: p, l: p }))]} />
+        <Sel value={filterProdCat} onChange={v => setFilterProdCat(v)} options={[{ v: "all", l: "全部類別" }, ...PROD_CATS.map(c => ({ v: c.v, l: c.l }))]} />
+        <div style={{ display: "flex", gap: 3 }}>
+          <Pill label="全" color="#6B7280" active={filterType === "all"} onClick={() => setFilterType("all")} small />
+          <Pill label="🔄 常態" color="#0369A1" active={filterType === "permanent"} onClick={() => setFilterType("permanent")} small />
+          <Pill label="⚡ 臨時" color="#B45309" active={filterType === "temporary"} onClick={() => setFilterType("temporary")} small />
+        </div>
+        <button onClick={add} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>＋ 新增</button>
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "#D1D5DB" }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>{(NOTE_TABS.find(t => t.id === subTab) || {}).icon || "📒"}</div>
+          <div style={{ fontSize: 13 }}>尚無備註，點「新增」開始記錄</div>
+        </div>
+      )}
+      {filtered.map(note => (
+        <NoteCard key={note.id} note={note}
+          onEdit={n => { setEf({ ...n }); setEditId(n.id); }}
+          onDelete={rm}
+          onToggleTrack={toggleTracked} />
+      ))}
+
+      {/* Editor */}
+      <NoteEditor
+        open={!!editId} onClose={() => setEditId(null)}
+        ef={ef} setEf={setEf}
+        onSave={saveEdit} onDelete={rm}
+        isNew={editId === "new"} tabId={subTab} />
+    </div>
+  );
+}
+
+/* ═══════ MARKETING TRACKING 📣 ═══════ */
+const MKT_STATUS = [
+  { v: "proposed", l: "提案中", color: "#6366F1", bg: "#EEF2FF" },
+  { v: "approved", l: "已核准", color: "#0369A1", bg: "#E0F2FE" },
+  { v: "active", l: "執行中", color: "#D97706", bg: "#FEF3C7" },
+  { v: "done", l: "已完成", color: "#059669", bg: "#D1FAE5" },
+  { v: "paused", l: "暫緩", color: "#9CA3AF", bg: "#F3F4F6" },
+];
+const LOG_STATUS = [
+  { v: "todo", l: "待辦", color: "#9CA3AF", bg: "#F3F4F6" },
+  { v: "active", l: "執行中", color: "#D97706", bg: "#FEF3C7" },
+  { v: "done", l: "已完成", color: "#059669", bg: "#D1FAE5" },
+  { v: "paused", l: "暫緩", color: "#6B7280", bg: "#F3F4F6" },
+];
+const LOG_CATS = [
+  { v: "product", l: "商品", color: "#7C3AED" },
+  { v: "material", l: "素材製作", color: "#0369A1" },
+  { v: "report", l: "業績回報", color: "#059669" },
+  { v: "social", l: "社群投放", color: "#D97706" },
+  { v: "event", l: "活動執行", color: "#DC2626" },
+  { v: "budget", l: "預算", color: "#6366F1" },
+  { v: "meeting", l: "會議決議", color: "#0891B2" },
+  { v: "other", l: "其他", color: "#6B7280" },
+];
+
+function MarketingPg({ mktg, setMktg }) {
+  const [editId, setEditId] = React.useState(null);
+  const [ef, setEf] = React.useState({});
+  const [logEdit, setLogEdit] = React.useState({ stratId: null, logId: null, text: "", cat: "other", status: "todo" });
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [dlUrl, setDlUrl] = React.useState(null);
+  const [dlName, setDlName] = React.useState("");
+  const [copied, setCopied] = React.useState(false);
+
+  const add = () => {
+    setEf({
+      id: "mk" + Date.now(), name: "", prodLine: "both", budget: "",
+      status: "proposed", description: "", proposedDate: new Date().toISOString().slice(0, 10),
+      logs: [],
+    });
+    setEditId("new");
+  };
+
+  const saveEdit = () => {
+    if (editId === "new") { setMktg(p => [...p, ef]); }
+    else { setMktg(p => p.map(m => m.id === editId ? ef : m)); }
+    setEditId(null);
+  };
+
+  const rm = (id) => setMktg(p => p.filter(m => m.id !== id));
+
+  const addLog = (stratId) => {
+    const text = logEdit.text.trim();
+    if (!text) return;
+    setMktg(p => p.map(m => {
+      if (m.id !== stratId) return m;
+      return { ...m, logs: [...(m.logs || []), {
+        id: "lg" + Date.now(),
+        date: new Date().toISOString().slice(0, 10),
+        text: text,
+        cat: logEdit.cat || "other",
+        status: logEdit.status || "todo",
+        done: false,
+      }] };
+    }));
+    setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" });
+  };
+
+  const rmLog = (stratId, logId) => {
+    setMktg(p => p.map(m => {
+      if (m.id !== stratId) return m;
+      return { ...m, logs: (m.logs || []).filter(l => l.id !== logId) };
+    }));
+  };
+
+  const changeLogStatus = (stratId, logId, newStatus) => {
+    setMktg(p => p.map(m => {
+      if (m.id !== stratId) return m;
+      return { ...m, logs: (m.logs || []).map(l => l.id === logId ? { ...l, status: newStatus, done: newStatus === "done" } : l) };
+    }));
+  };
+
+  const toggleLog = (stratId, logId) => {
+    setMktg(p => p.map(m => {
+      if (m.id !== stratId) return m;
+      return { ...m, logs: (m.logs || []).map(l => {
+        if (l.id !== logId) return l;
+        const newDone = !l.done;
+        return { ...l, done: newDone, status: newDone ? "done" : "todo" };
+      }) };
+    }));
+  };
+
+  const saveLog = (stratId, logId) => {
+    const text = logEdit.text.trim();
+    if (!text) return;
+    setMktg(p => p.map(m => {
+      if (m.id !== stratId) return m;
+      return { ...m, logs: (m.logs || []).map(l => l.id === logId ? { ...l, text: text, cat: logEdit.cat || l.cat, status: logEdit.status || l.status } : l) };
+    }));
+    setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" });
+  };
+
+  const changeStatus = (id, newStatus) => {
+    setMktg(p => p.map(m => m.id === id ? { ...m, status: newStatus } : m));
+  };
+
+  const filtered = mktg.filter(m => filterStatus === "all" || m.status === filterStatus);
+
+  // Export biweekly report as HTML
+  const exportReport = () => {
+    const today = new Date();
+    const yy = today.getFullYear() - 1911;
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    const active = mktg.filter(m => m.status !== "done" && m.status !== "paused");
+    const completed = mktg.filter(m => m.status === "done");
+    const paused = mktg.filter(m => m.status === "paused");
+
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
+
+    const buildRows = (list) => list.map(m => {
+      const prod = m.prodLine === "both" ? "參+補" : m.prodLine === "ref" ? "參考書" : "補充";
+      const st = (MKT_STATUS.find(s => s.v === m.status) || {}).l || "";
+      const stColor = (MKT_STATUS.find(s => s.v === m.status) || {}).color || "#666";
+      const logs = m.logs || [];
+      const progress = logs.filter(l => l.status === "done" || l.status === "active").map(l => {
+        const icon = l.status === "done" ? '<span style="color:#059669">✓</span>' : '<span style="color:#D97706">▸</span>';
+        return icon + " " + esc(l.text);
+      }).join("<br>") || '<span style="color:#ccc">—</span>';
+      const todos = logs.filter(l => l.status === "todo" || l.status === "paused").map(l => {
+        return "○ " + esc(l.text);
+      }).join("<br>");
+      return '<tr><td style="font-weight:600">' + esc(m.name) + '</td><td style="font-size:11px;color:#555">' + esc(m.description) + '</td><td style="text-align:center">' + prod + '</td><td style="text-align:center"><span style="color:' + stColor + ';font-weight:700">' + st + '</span></td><td style="text-align:center;font-size:11px">' + esc(m.budget) + '</td><td>' + progress + '</td>' + (todos ? '<td style="color:#666">' + todos + '</td>' : '<td style="color:#ccc">—</td>') + '</tr>';
+    }).join("\n");
+
+    let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>行銷雙週報 ' + yy + '/' + mm + '/' + dd + '</title>';
+    html += '<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Microsoft JhengHei","Noto Sans TC",sans-serif;padding:24px;background:#fff;color:#1a1a1a;font-size:13px}';
+    html += 'h1{font-size:18px;margin-bottom:4px}h2{font-size:13px;color:#6b7280;margin:18px 0 8px;padding:6px 10px;background:#f3f4f6;border-radius:6px}';
+    html += 'table{width:100%;border-collapse:collapse;margin-bottom:16px}th{background:#1B6B93;color:#fff;padding:8px 10px;text-align:left;font-size:12px;font-weight:600}';
+    html += 'td{padding:8px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:12px;line-height:1.6}tr:hover{background:#f8fafc}';
+    html += '.footer{margin-top:20px;font-size:11px;color:#9ca3af;text-align:center}';
+    html += '@media print{body{padding:10px}h1{font-size:16px}td,th{font-size:11px;padding:5px 6px}}</style></head><body>';
+
+    html += '<h1>115 行銷策略雙週報告</h1>';
+    html += '<div style="font-size:12px;color:#6b7280;margin-bottom:16px">報告日期：' + yy + '/' + mm + '/' + dd + ' ｜ 策略數：' + mktg.length + ' ｜ 執行中：' + active.length + '</div>';
+
+    const headers = '<thead><tr><th style="width:13%">策略名稱</th><th style="width:20%">策略說明</th><th style="width:6%">產品線</th><th style="width:6%">狀態</th><th style="width:7%">預算</th><th style="width:26%">最近進度</th><th style="width:22%">待辦事項</th></tr></thead>';
+
+    if (active.length) {
+      html += '<h2>▼ 執行中 / 已核准 / 提案中（' + active.length + '）</h2>';
+      html += '<table>' + headers + '<tbody>' + buildRows(active) + '</tbody></table>';
+    }
+    if (completed.length) {
+      html += '<h2>▼ 已完成（' + completed.length + '）</h2>';
+      html += '<table>' + headers + '<tbody>' + buildRows(completed) + '</tbody></table>';
+    }
+    if (paused.length) {
+      html += '<h2>▼ 暫緩（' + paused.length + '）</h2>';
+      html += '<table>' + headers + '<tbody>' + buildRows(paused) + '</tbody></table>';
+    }
+
+    html += '<div class="footer">此報告由工作管理系統自動產生 ｜ 可直接列印（Ctrl+P）或全選複製貼到信件</div>';
+    html += '</body></html>';
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const fname = "行銷雙週報_" + yy + mm + dd + ".html";
+    setDlUrl(url);
+    setDlName(fname);
+    try { const a = document.createElement("a"); a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a); } catch (e) {}
+  };
+
+  // Copy as email text
+  const copyEmailText = () => {
+    const today = new Date();
+    const yy = today.getFullYear() - 1911;
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+
+    let text = "115 行銷策略進度報告（" + yy + "/" + mm + "/" + dd + "）\n\n";
+
+    const active = mktg.filter(m => m.status !== "done" && m.status !== "paused");
+    const completed = mktg.filter(m => m.status === "done");
+
+    if (active.length) {
+      text += "━━ 進行中 ━━\n\n";
+      active.forEach(m => {
+        const prod = m.prodLine === "both" ? "[參+補]" : m.prodLine === "ref" ? "[參]" : "[補]";
+        const st = (MKT_STATUS.find(s => s.v === m.status) || {}).l || "";
+        text += "■ " + m.name + " " + prod + "（" + st + "）\n";
+        if (m.budget) text += "  預算：" + m.budget + "\n";
+        const logs = m.logs || [];
+        const doneItems = logs.filter(l => l.status === "done");
+        const activeItems = logs.filter(l => l.status === "active");
+        const todoItems = logs.filter(l => l.status === "todo");
+        if (doneItems.length) {
+          doneItems.forEach(l => text += "  ✓ " + l.text + "\n");
+        }
+        if (activeItems.length) {
+          activeItems.forEach(l => text += "  ▸ " + l.text + "\n");
+        }
+        if (todoItems.length) {
+          text += "  【待辦】\n";
+          todoItems.forEach(l => text += "  ○ " + l.text + "\n");
+        }
+        text += "\n";
+      });
+    }
+
+    if (completed.length) {
+      text += "━━ 已完成 ━━\n\n";
+      completed.forEach(m => {
+        text += "✓ " + m.name + "\n";
+      });
+      text += "\n";
+    }
+
+    text += "────\n以上報告，請參閱。\n";
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const statusCounts = {};
+  MKT_STATUS.forEach(s => { statusCounts[s.v] = mktg.filter(m => m.status === s.v).length; });
+
+  return (
+    <div>
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+        {MKT_STATUS.map(s => (
+          <div key={s.v} style={{ background: s.bg, borderRadius: 10, padding: "6px 12px", display: "flex", alignItems: "center", gap: 5, minWidth: 70 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: s.color }}>{statusCounts[s.v] || 0}</div>
+            <div style={{ fontSize: 9, color: s.color, fontWeight: 600 }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter + actions */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
+        <Pill label="全部" color="#6B7280" active={filterStatus === "all"} onClick={() => setFilterStatus("all")} small />
+        {MKT_STATUS.map(s => (
+          <Pill key={s.v} label={s.l} color={s.color} active={filterStatus === s.v} onClick={() => setFilterStatus(filterStatus === s.v ? "all" : s.v)} small />
+        ))}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          <button onClick={(e) => { e.stopPropagation(); copyEmailText(); }} style={{ background: copied ? "#D1FAE5" : "#fff", border: "1.5px solid " + (copied ? "#059669" : "#E5E7EB"), borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", color: copied ? "#059669" : "#374151", transition: "all .2s" }}>
+            {copied ? "✓ 已複製" : "📋 複製信件文字"}
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); exportReport(); }} style={{ background: "#059669", color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>📥 匯出雙週報 Excel</button>
+          <button onClick={add} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>＋ 新增策略</button>
+        </div>
+      </div>
+
+      {/* Download link */}
+      {dlUrl && (
+        <div style={{ padding: "10px 14px", background: "#ECFDF5", borderRadius: 10, border: "1px solid #A7F3D0", marginBottom: 12 }}>
+          <a href={dlUrl} download={dlName} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 13, fontWeight: 700, color: "#059669", textDecoration: "underline" }}>📥 點此下載：{dlName}</a>
+        </div>
+      )}
+
+      {/* Strategy list */}
+      {filtered.length === 0 && (
+        <div style={{ textAlign: "center", padding: 40, color: "#D1D5DB" }}>
+          <div style={{ fontSize: 36, marginBottom: 8 }}>📣</div>
+          <div style={{ fontSize: 13 }}>尚無行銷策略，點「新增策略」開始</div>
+        </div>
+      )}
+
+      {filtered.map(strat => {
+        const st = MKT_STATUS.find(s => s.v === strat.status) || MKT_STATUS[0];
+        const prods = strat.prodLine === "both" ? [PL.ref, PL.supp] : [PL[strat.prodLine]].filter(Boolean);
+        const logs = strat.logs || [];
+        return (
+          <div key={strat.id} style={{ background: "#fff", borderRadius: 14, padding: "16px 18px", marginBottom: 8, border: "1px solid #F0F0F0" }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#1F2937" }}>{strat.name || "未命名策略"}</span>
+                  {prods.map(p => <span key={p.label} style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: p.bg, color: p.color }}>{p.label}</span>)}
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: st.bg, color: st.color }}>{st.l}</span>
+                  {strat.budget && <span style={{ fontSize: 10, color: "#6B7280" }}>💰 {strat.budget}</span>}
+                </div>
+                {strat.description && <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>{strat.description}</div>}
+                <div style={{ fontSize: 10, color: "#D1D5DB", marginTop: 2 }}>提案：{strat.proposedDate}</div>
+              </div>
+              <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                <IB onClick={() => { setEf({ ...strat }); setEditId(strat.id); }}>✏️</IB>
+                <IB onClick={() => rm(strat.id)} danger>✕</IB>
+              </div>
+            </div>
+
+            {/* Status quick-change */}
+            <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+              {MKT_STATUS.map(s => (
+                <button key={s.v} onClick={() => changeStatus(strat.id, s.v)} style={{
+                  fontSize: 9, fontWeight: 600, padding: "3px 8px", borderRadius: 6, cursor: "pointer",
+                  border: strat.status === s.v ? "1.5px solid " + s.color : "1px solid #E5E7EB",
+                  background: strat.status === s.v ? s.bg : "#fff",
+                  color: strat.status === s.v ? s.color : "#9CA3AF",
+                }}>{s.l}</button>
+              ))}
+            </div>
+
+            {/* Progress logs */}
+            <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", marginBottom: 6 }}>📝 進度紀錄 ({logs.length})</div>
+              {logs.length === 0 && <div style={{ fontSize: 11, color: "#D1D5DB", fontStyle: "italic", marginBottom: 6 }}>尚無進度紀錄</div>}
+              {logs.map(log => {
+                const isEditing = logEdit.stratId === strat.id && logEdit.logId === log.id;
+                const ls = LOG_STATUS.find(s => s.v === (log.status || "todo")) || LOG_STATUS[0];
+                const lc = LOG_CATS.find(c => c.v === (log.cat || "other")) || LOG_CATS[LOG_CATS.length - 1];
+                const isDone = log.status === "done" || log.done;
+                return (
+                  <div key={log.id} style={{ padding: "6px 0", borderBottom: "1px solid #FAFAFA", opacity: isDone ? 0.55 : 1 }}>
+                    {isEditing ? (
+                      <div>
+                        <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                          <Inp value={logEdit.text} onChange={e => setLogEdit(p => ({ ...p, text: e.target.value }))}
+                            onKeyDown={e => { if (e.key === "Enter") saveLog(strat.id, log.id); if (e.key === "Escape") setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" }); }}
+                            style={{ flex: 1, fontSize: 12, padding: "6px 10px" }} />
+                          <button onClick={() => saveLog(strat.id, log.id)} style={{ background: "#059669", color: "#fff", border: "none", borderRadius: 6, padding: "4px 12px", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>✓</button>
+                          <button onClick={() => setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" })} style={{ background: "#F3F4F6", border: "none", borderRadius: 6, padding: "4px 8px", fontSize: 10, cursor: "pointer", color: "#6B7280" }}>✕</button>
+                        </div>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {LOG_CATS.map(c => (
+                            <button key={c.v} onClick={() => setLogEdit(p => ({ ...p, cat: c.v }))} style={{
+                              fontSize: 9, padding: "2px 7px", borderRadius: 10, cursor: "pointer",
+                              border: logEdit.cat === c.v ? "1.5px solid " + c.color : "1px solid #E5E7EB",
+                              background: logEdit.cat === c.v ? c.color + "15" : "#fff",
+                              color: logEdit.cat === c.v ? c.color : "#9CA3AF", fontWeight: 600,
+                            }}>{c.l}</button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#BCBCBC", whiteSpace: "nowrap", marginTop: 2 }}>{log.date}</span>
+                        <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 8, background: lc.color + "15", color: lc.color, whiteSpace: "nowrap", marginTop: 1 }}>{lc.l}</span>
+                        <span onClick={() => setLogEdit({ stratId: strat.id, logId: log.id, text: log.text, cat: log.cat || "other", status: log.status || "todo" })}
+                          style={{ fontSize: 12, color: isDone ? "#9CA3AF" : "#374151", flex: 1, lineHeight: 1.5, cursor: "pointer", textDecoration: isDone ? "line-through" : "none" }}
+                          title="點擊編輯">{log.text}</span>
+                        <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                          {LOG_STATUS.map(s => (
+                            <button key={s.v} onClick={() => changeLogStatus(strat.id, log.id, s.v)} style={{
+                              fontSize: 8, fontWeight: 700, padding: "2px 5px", borderRadius: 5, cursor: "pointer",
+                              border: (log.status || "todo") === s.v ? "1.5px solid " + s.color : "1px solid #EFEFEF",
+                              background: (log.status || "todo") === s.v ? s.bg : "#fff",
+                              color: (log.status || "todo") === s.v ? s.color : "#D1D5DB",
+                            }}>{s.l}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Add log */}
+              <div style={{ marginTop: 8, padding: "10px 12px", background: "#FAFAFA", borderRadius: 10 }}>
+                <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                  <Inp value={logEdit.stratId === strat.id && !logEdit.logId ? logEdit.text : ""}
+                    onChange={e => setLogEdit(p => ({ ...p, stratId: strat.id, logId: null, text: e.target.value }))}
+                    onFocus={() => { if (logEdit.stratId !== strat.id || logEdit.logId) setLogEdit({ stratId: strat.id, logId: null, text: "", cat: "other", status: "todo" }); }}
+                    placeholder="新增進度紀錄..." style={{ flex: 1, fontSize: 12 }}
+                    onKeyDown={e => { if (e.key === "Enter") addLog(strat.id); if (e.key === "Escape") setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" }); }} />
+                  <button onClick={() => addLog(strat.id)} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>＋</button>
+                  {logEdit.stratId === strat.id && !logEdit.logId && logEdit.text && (
+                    <button onClick={() => setLogEdit({ stratId: null, logId: null, text: "", cat: "other", status: "todo" })} style={{ background: "#F3F4F6", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 11, cursor: "pointer", color: "#9CA3AF" }}>✕</button>
+                  )}
+                </div>
+                {logEdit.stratId === strat.id && !logEdit.logId && (
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                    <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>分類：</span>
+                    {LOG_CATS.map(c => (
+                      <button key={c.v} onClick={() => setLogEdit(p => ({ ...p, cat: c.v }))} style={{
+                        fontSize: 9, padding: "2px 7px", borderRadius: 10, cursor: "pointer",
+                        border: logEdit.cat === c.v ? "1.5px solid " + c.color : "1px solid #E5E7EB",
+                        background: logEdit.cat === c.v ? c.color + "15" : "#fff",
+                        color: logEdit.cat === c.v ? c.color : "#9CA3AF", fontWeight: 600,
+                      }}>{c.l}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Editor modal */}
+      <Modal open={!!editId} onClose={() => setEditId(null)} title={editId === "new" ? "新增行銷策略" : "編輯策略"} width={480}>
+        <FW><FL>策略名稱</FL><Inp value={ef.name || ""} onChange={e => setEf(p => ({ ...p, name: e.target.value }))} placeholder="例：115門市海報推廣" /></FW>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+          <div><FL>產品線</FL><Sel value={ef.prodLine || "both"} onChange={v => setEf(p => ({ ...p, prodLine: v }))} options={[{ v: "ref", l: "📘 參考書" }, { v: "supp", l: "📙 版版補充" }, { v: "both", l: "📘📙 兩者" }]} /></div>
+          <div><FL>狀態</FL><Sel value={ef.status || "proposed"} onChange={v => setEf(p => ({ ...p, status: v }))} options={MKT_STATUS.map(s => ({ v: s.v, l: s.l }))} /></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+          <div><FL>預算</FL><Inp value={ef.budget || ""} onChange={e => setEf(p => ({ ...p, budget: e.target.value }))} placeholder="例：NT$50,000" /></div>
+          <div><FL>提案日期</FL><input type="date" value={ef.proposedDate || ""} onChange={e => setEf(p => ({ ...p, proposedDate: e.target.value }))} style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, outline: "none", boxSizing: "border-box" }} /></div>
+        </div>
+        <FW><FL>策略說明</FL>
+          <textarea value={ef.description || ""} onChange={e => setEf(p => ({ ...p, description: e.target.value }))} placeholder="策略內容、目標、執行方式..."
+            style={{ width: "100%", padding: "8px 12px", border: "1.5px solid #E5E7EB", borderRadius: 10, fontSize: 13, minHeight: 70, resize: "vertical", boxSizing: "border-box", outline: "none", fontFamily: F }} />
+        </FW>
+        <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F3F4F6" }}>
+          <div>{editId !== "new" && <button onClick={() => { rm(editId); setEditId(null); }} style={{ background: "none", border: "1.5px solid #EF4444", color: "#EF4444", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>刪除</button>}</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setEditId(null)} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+            <button onClick={saveEdit} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>儲存</button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ═══════ MEMO PAGE 📓 ═══════ */
+function MemoPg({ memos, setMemos }) {
+  const [activeId, setActiveId] = React.useState(null);
+  const [search, setSearch] = React.useState("");
+  const [copied, setCopied] = React.useState(null);
+
+  const add = () => {
+    const n = { id: "mm" + Date.now(), title: "新備忘錄", content: "", createdAt: new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString().slice(0, 10) };
+    setMemos(p => [n, ...p]);
+    setActiveId(n.id);
+  };
+
+  const update = (id, field, value) => {
+    setMemos(p => p.map(m => m.id === id ? { ...m, [field]: value, updatedAt: new Date().toISOString().slice(0, 10) } : m));
+  };
+
+  const rm = (id) => {
+    setMemos(p => p.filter(m => m.id !== id));
+    if (activeId === id) setActiveId(null);
+  };
+
+  const copyAll = (memo) => {
+    const text = memo.title + "\n" + (memo.createdAt ? "建立：" + memo.createdAt + "\n" : "") + "────\n" + memo.content;
+    navigator.clipboard.writeText(text);
+    setCopied(memo.id);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const dlMemo = (memo) => {
+    const text = memo.title + "\n建立：" + memo.createdAt + "\n更新：" + memo.updatedAt + "\n────────────\n" + memo.content;
+    const blob = new Blob(["\uFEFF" + text], { type: "text/plain;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (memo.title || "備忘錄") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const dlAll = () => {
+    let text = "所有備忘錄匯出\n" + new Date().toISOString().slice(0, 10) + "\n";
+    text += "════════════════════\n\n";
+    memos.forEach((m, i) => {
+      text += "【" + (i + 1) + "】" + m.title + "\n";
+      text += "建立：" + m.createdAt + " ｜ 更新：" + m.updatedAt + "\n";
+      text += "────────────\n";
+      text += m.content + "\n\n";
+    });
+    const blob = new Blob(["\uFEFF" + text], { type: "text/plain;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "備忘錄匯出_" + new Date().toISOString().slice(0, 10) + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const filtered = memos.filter(m => {
+    if (!search) return true;
+    return (m.title + m.content).toLowerCase().includes(search.toLowerCase());
+  });
+
+  const activeMemo = activeId ? memos.find(m => m.id === activeId) : null;
+
+  return (
+    <div style={{ display: "flex", gap: 12, minHeight: 500 }}>
+      {/* Sidebar - memo list */}
+      <div style={{ width: 240, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+          <button onClick={add} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", flex: 1 }}>＋ 新備忘錄</button>
+          {memos.length > 0 && <button onClick={dlAll} style={{ background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 10, padding: "8px 10px", fontSize: 11, cursor: "pointer", color: "#6B7280", fontWeight: 600 }}>📥</button>}
+        </div>
+        <Inp value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 搜尋..." style={{ marginBottom: 10, fontSize: 12 }} />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {filtered.length === 0 && <div style={{ fontSize: 12, color: "#D1D5DB", textAlign: "center", padding: 20, fontStyle: "italic" }}>沒有備忘錄</div>}
+          {filtered.map(memo => (
+            <button key={memo.id} onClick={() => setActiveId(memo.id)} style={{
+              background: activeId === memo.id ? A + "12" : "#fff",
+              border: activeId === memo.id ? "1.5px solid " + A : "1px solid #F0F0F0",
+              borderRadius: 10, padding: "10px 12px", cursor: "pointer", textAlign: "left",
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#1F2937", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memo.title || "未命名"}</div>
+              <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{memo.updatedAt}</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {memo.content ? memo.content.slice(0, 40) + (memo.content.length > 40 ? "..." : "") : "空白"}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Main editor */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {!activeMemo ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#D1D5DB" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 8 }}>📓</div>
+              <div style={{ fontSize: 14 }}>選擇一則備忘錄，或新增一則</div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #F0F0F0", height: "100%", display: "flex", flexDirection: "column" }}>
+            {/* Title bar */}
+            <div style={{ padding: "12px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
+              <input value={activeMemo.title} onChange={e => update(activeMemo.id, "title", e.target.value)}
+                style={{ flex: 1, border: "none", outline: "none", fontSize: 16, fontWeight: 700, color: "#1F2937", fontFamily: F, background: "transparent" }}
+                placeholder="備忘錄標題..." />
+              <button onClick={(e) => { e.stopPropagation(); copyAll(activeMemo); }}
+                style={{ background: copied === activeMemo.id ? "#D1FAE5" : "#F3F4F6", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", color: copied === activeMemo.id ? "#059669" : "#6B7280", transition: "all .2s" }}>
+                {copied === activeMemo.id ? "✓ 已複製" : "📋 複製全文"}
+              </button>
+              <button onClick={(e) => { e.stopPropagation(); dlMemo(activeMemo); }}
+                style={{ background: "#F3F4F6", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>
+                📥 下載
+              </button>
+              <IB onClick={() => { if (confirm("確定刪除此備忘錄？")) rm(activeMemo.id); }} danger title="刪除">🗑</IB>
+            </div>
+            {/* Meta */}
+            <div style={{ padding: "6px 16px", fontSize: 10, color: "#BCBCBC", display: "flex", gap: 12 }}>
+              <span>建立：{activeMemo.createdAt}</span>
+              <span>更新：{activeMemo.updatedAt}</span>
+              <span>{activeMemo.content ? activeMemo.content.length + " 字" : "空白"}</span>
+            </div>
+            {/* Content */}
+            <textarea
+              value={activeMemo.content}
+              onChange={e => update(activeMemo.id, "content", e.target.value)}
+              placeholder="自由輸入文字、想法、問題、靈感...&#10;&#10;寫完可以按「複製全文」貼到 Gemini / ChatGPT 處理"
+              style={{
+                flex: 1, padding: "14px 16px", border: "none", outline: "none", resize: "none",
+                fontSize: 14, lineHeight: 1.8, color: "#374151", fontFamily: F,
+                background: "transparent", borderRadius: "0 0 14px 14px",
+              }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════ MAIN APP ═══════ */
+function App() {
+  const [tasks, setTasks] = React.useState([]);
+  const [todos, setTodos] = React.useState([]);
+  const [tools, setTools] = React.useState([]);
+  const [notes, setNotes] = React.useState([]);
+  const [mktg, setMktg] = React.useState([]);
+  const [memos, setMemos] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState("dashboard");
+  const [selM, setSelM] = React.useState(new Date().getMonth());
+  const [fP, setFP] = React.useState("all");
+  const [fC, setFC] = React.useState("all");
+  const [editTask, setEditTask] = React.useState(null);
+  const [isNew, setIsNew] = React.useState(false);
+  const [showReport, setShowReport] = React.useState(false);
+  const [showClone, setShowClone] = React.useState(false);
+  const [showData, setShowData] = React.useState(false);
+  const [showPA, setShowPA] = React.useState(false);
+  const [zoom, setZoom] = React.useState(1.15);
+  const [ghCfg, setGhCfg] = React.useState(null);
+  const [ghStatus, setGhStatus] = React.useState("off"); // off | ok | syncing | error
+  const [showCloud, setShowCloud] = React.useState(false);
+  const [ghForm, setGhForm] = React.useState({ owner: "", repo: "", token: "" });
+
+  React.useEffect(() => {
+    (async () => {
+      const [t, td, tl, nt, zm, mk, me] = await Promise.all([sLoad("wv5t"), sLoad("wv5d"), sLoad("wv5l"), sLoad("wv5n"), sLoad("wv5z"), sLoad("wv5m"), sLoad("wv5me")]);
+      setTasks(t || defTasks());
+      setTodos(td || []);
+      setTools(tl || []);
+      setNotes(nt || []);
+      setMktg(mk || []);
+      setMemos(me || []);
+      if (zm) setZoom(zm);
+      // Load GitHub config
+      const gc = await ghLoadCfg();
+      if (gc && gc.token) {
+        setGhCfg(gc);
+        setGhForm(gc);
+        setGhStatus("ok");
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  React.useEffect(() => { if (!loading) sSave("wv5t", tasks); }, [tasks, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5d", todos); }, [todos, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5l", tools); }, [tools, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5n", notes); }, [notes, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5m", mktg); }, [mktg, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5me", memos); }, [memos, loading]);
+  React.useEffect(() => { if (!loading) sSave("wv5z", zoom); }, [zoom, loading]);
+
+  // Cloud sync
+  const syncTimerRef = React.useRef(null);
+
+  const doCloudPush = React.useCallback(() => {
+    if (!ghCfg || !ghCfg.token) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(async () => {
+      setGhStatus("syncing");
+      try {
+        await ghPush(ghCfg, { tasks, todos, tools, notes, mktg, memos, v: "v5", syncAt: new Date().toISOString() });
+        setGhStatus("ok");
+      } catch (e) {
+        console.error("Cloud sync error:", e);
+        setGhStatus("error");
+      }
+    }, 3000);
+  }, [ghCfg, tasks, todos, tools, notes, mktg, memos]);
+
+  React.useEffect(() => { if (!loading && ghCfg) doCloudPush(); }, [tasks, todos, tools, notes, mktg, memos, loading]);
+
+  const cloudPull = async () => {
+    if (!ghCfg) return;
+    setGhStatus("syncing");
+    try {
+      const d = await ghPull(ghCfg);
+      if (d) {
+        if (d.tasks) setTasks(d.tasks);
+        if (d.todos) setTodos(d.todos);
+        if (d.tools) setTools(d.tools);
+        if (d.notes) setNotes(d.notes);
+        if (d.mktg) setMktg(d.mktg);
+        if (d.memos) setMemos(d.memos);
+        setGhStatus("ok");
+        alert("雲端資料已下載！");
+      } else {
+        setGhStatus("ok");
+        alert("雲端尚無資料");
+      }
+    } catch (e) { setGhStatus("error"); alert("下載失敗：" + e.message); }
+  };
+
+  const cloudSaveConfig = async () => {
+    if (!ghForm.owner || !ghForm.repo || !ghForm.token) { alert("請填寫完整"); return; }
+    setGhStatus("syncing");
+    try {
+      const r = await fetch("https://api.github.com/repos/" + ghForm.owner + "/" + ghForm.repo, { headers: { Authorization: "token " + ghForm.token } });
+      if (!r.ok) throw new Error("連線失敗，請檢查帳號/Repo/Token");
+      await ghSaveCfg(ghForm);
+      setGhCfg(ghForm);
+      setGhStatus("ok");
+      setShowCloud(false);
+      await ghPush(ghForm, { tasks, todos, tools, notes, mktg, memos, v: "v5", syncAt: new Date().toISOString() });
+      alert("連線成功！資料已上傳。");
+    } catch (e) { setGhStatus("error"); alert(e.message); }
+  };
+
+  const cloudDisconnect = async () => {
+    await window.storage.delete(GH_KEY);
+    setGhCfg(null); setGhStatus("off"); setGhForm({ owner: "", repo: "", token: "" }); setShowCloud(false);
+  };
+
+  const toggle = React.useCallback(id => setTasks(p => p.map(t => t.id === id ? { ...t, status: STC[(STC.indexOf(t.status) + 1) % 3] } : t)), []);
+  const saveTask = React.useCallback(u => setTasks(p => { const ex = p.find(t => t.id === u.id); return ex ? p.map(t => t.id === u.id ? u : t) : [...p, u]; }), []);
+  const delTask = React.useCallback(id => setTasks(p => p.filter(t => t.id !== id)), []);
+
+  const openNew = () => {
+    setEditTask({ id: "t" + Date.now(), month: selM, category: "project", product: "both", title: "", status: "pending", note: "", url: "", aiTool: null, exp: "", subs: [] });
+    setIsNew(true);
+  };
+
+  const filtered = React.useMemo(() => tasks.filter(t => {
+    if (t.month !== selM) return false;
+    if (fP !== "all" && t.product !== fP && t.product !== "both") return false;
+    if (fC !== "all" && t.category !== fC) return false;
+    return true;
+  }), [tasks, selM, fP, fC]);
+
+  const grouped = React.useMemo(() => {
+    const g = {};
+    Object.keys(CATS).forEach(k => { g[k] = []; });
+    filtered.forEach(t => { if (g[t.category]) g[t.category].push(t); });
+    return g;
+  }, [filtered]);
+
+  const mSt = React.useMemo(() => {
+    const m = tasks.filter(t => t.month === selM);
+    const d = m.filter(t => t.status === "done").length;
+    const i = m.filter(t => t.status === "inProgress").length;
+    return { total: m.length, done: d, ip: i, pd: m.length - d - i };
+  }, [tasks, selM]);
+
+  const ySt = React.useMemo(() => {
+    const d = tasks.filter(t => t.status === "done").length;
+    return { total: tasks.length, done: d, pct: tasks.length ? Math.round(d / tasks.length * 100) : 0 };
+  }, [tasks]);
+
+  const mC = React.useMemo(() => MONTHS.map((_, mi) => {
+    const m = tasks.filter(t => t.month === mi);
+    const d = m.filter(t => t.status === "done").length;
+    return { total: m.length, done: d, pct: m.length ? Math.round(d / m.length * 100) : 0 };
+  }), [tasks]);
+
+  if (loading) {
+    return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", fontFamily: F }}>⏳ 載入中...</div>;
+  }
+
+  const todoCount = todos.filter(t => !t.done).length;
+
+  return (
+    <div style={{ fontFamily: F, background: "#F5F3EE", minHeight: "100vh", color: "#1A1A1A", zoom: zoom }}>
+      
+
+      {/* HEADER */}
+      <div style={{ background: "linear-gradient(140deg, #0D1B2A 0%, #1B2838 40%, #1B6B93 100%)", padding: "14px 20px 0", color: "#fff" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, paddingBottom: 8 }}>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 19, fontWeight: 900 }}>參考書、版版補充教材 — 115 年度工作管理系統</h1>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {/* Zoom controls */}
+              <div style={{ display: "flex", alignItems: "center", gap: 2, background: "rgba(255,255,255,0.1)", borderRadius: 8, padding: "3px 4px" }}>
+                <button onClick={() => setZoom(z => Math.max(0.85, +(z - 0.1).toFixed(2)))} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4 }}
+                  onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                  onMouseOut={e => e.currentTarget.style.background = "none"}>−</button>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#fff", minWidth: 36, textAlign: "center" }}>{Math.round(zoom * 100)}%</span>
+                <button onClick={() => setZoom(z => Math.min(1.6, +(z + 0.1).toFixed(2)))} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 14, padding: "2px 6px", borderRadius: 4 }}
+                  onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+                  onMouseOut={e => e.currentTarget.style.background = "none"}>+</button>
+              </div>
+              <button onClick={() => setShowPA(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 10, color: "#fff", cursor: "pointer", fontWeight: 600 }}>⚡ PA</button>
+              <button onClick={() => setShowCloud(true)} style={{ background: ghStatus === "ok" ? "rgba(52,211,153,0.2)" : ghStatus === "error" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 10, color: "#fff", cursor: "pointer", fontWeight: 600 }}>
+                {ghStatus === "syncing" ? "⏳" : ghStatus === "ok" ? "☁️✓" : ghStatus === "error" ? "☁️✗" : "☁️"}{" "}雲端
+              </button>
+              <button onClick={() => setShowData(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 10, color: "#fff", cursor: "pointer", fontWeight: 600 }}>💾</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.07)", borderRadius: 10, padding: "5px 10px" }}>
+                <div style={{ position: "relative", width: 32, height: 32 }}>
+                  <svg width="32" height="32" viewBox="0 0 32 32">
+                    <circle cx="16" cy="16" r="13" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+                    <circle cx="16" cy="16" r="13" fill="none" stroke="#34D399" strokeWidth="3"
+                      strokeDasharray={ySt.pct * 0.817 + " 81.7"} strokeLinecap="round" transform="rotate(-90 16 16)" />
+                  </svg>
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 800 }}>{ySt.pct}%</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 8, opacity: 0.5 }}>年度</div>
+                  <div style={{ fontSize: 10, fontWeight: 600 }}>{ySt.done}/{ySt.total}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* TABS */}
+          <div style={{ display: "flex", gap: 1 }}>
+            {[{ id: "dashboard", l: "📊 排程" }, { id: "todo", l: "📝 待辦" }, { id: "mktg", l: "📣 行銷" }, { id: "memo", l: "📓 備忘錄" }, { id: "notes", l: "📋 備註事項" }, { id: "tools", l: "🧰 工具" }].map(tab => (
+              <button key={tab.id} onClick={() => setPage(tab.id)} style={{
+                background: page === tab.id ? "rgba(255,255,255,0.15)" : "transparent",
+                color: "#fff", border: "none", borderRadius: "8px 8px 0 0",
+                padding: "6px 14px", fontSize: 11, fontWeight: page === tab.id ? 700 : 500,
+                cursor: "pointer", borderBottom: page === tab.id ? "2px solid #34D399" : "2px solid transparent",
+              }}>
+                {tab.l}
+                {tab.id === "todo" && todoCount > 0 && <span style={{ marginLeft: 4, background: "#EF4444", color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 8 }}>{todoCount}</span>}
+                {tab.id === "mktg" && mktg.filter(m => m.status === "active").length > 0 && <span style={{ marginLeft: 4, background: "#D97706", color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 8 }}>{mktg.filter(m => m.status === "active").length}</span>}
+                {tab.id === "memo" && memos.length > 0 && <span style={{ marginLeft: 4, fontSize: 8, opacity: 0.6 }}>{memos.length}</span>}
+                {tab.id === "notes" && notes.filter(n => n.trackDate && !n.tracked).length > 0 && <span style={{ marginLeft: 4, background: "#D97706", color: "#fff", fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 8 }}>{notes.filter(n => n.trackDate && !n.tracked).length}</span>}
+                {tab.id === "tools" && tools.length > 0 && <span style={{ marginLeft: 4, fontSize: 8, opacity: 0.6 }}>{tools.length}</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "14px 16px" }}>
+        {page === "todo" && (
+          <div>
+            <WeeklyReminder tasks={tasks} todos={todos} notes={notes} setTasks={setTasks} setTodos={setTodos} setNotes={setNotes} />
+            <TodoPg todos={todos} setTodos={setTodos} tasks={tasks} setTasks={setTasks} />
+          </div>
+        )}
+        {page === "notes" && <ProductNotesPg notes={notes} setNotes={setNotes} setTodos={setTodos} />}
+        {page === "mktg" && <MarketingPg mktg={mktg} setMktg={setMktg} />}
+        {page === "memo" && <MemoPg memos={memos} setMemos={setMemos} />}
+        {page === "tools" && <ToolsPg tools={tools} setTools={setTools} />}
+        {page === "dashboard" && (
+          <div>
+
+            {/* MONTHS */}
+            <div style={{ display: "flex", gap: 3, marginBottom: 12, overflowX: "auto" }}>
+              {MONTHS.map((m, i) => {
+                const sel = i === selM;
+                const cur = i === new Date().getMonth();
+                const mc = mC[i];
+                return (
+                  <button key={m} onClick={() => setSelM(i)} style={{
+                    flex: "1 0 auto", minWidth: 54, padding: "5px 3px", textAlign: "center",
+                    border: sel ? "2px solid " + A : "2px solid transparent",
+                    borderRadius: 10, background: sel ? "#fff" : "rgba(255,255,255,0.6)",
+                    cursor: "pointer", position: "relative",
+                  }}>
+                    {cur && <div style={{ position: "absolute", top: -5, left: "50%", transform: "translateX(-50%)", background: "#E07A5F", color: "#fff", fontSize: 7, padding: "0 4px", borderRadius: 4, fontWeight: 700 }}>NOW</div>}
+                    <div style={{ fontSize: 11, fontWeight: sel ? 800 : 500 }}>{m}</div>
+                    <div style={{ height: 3, borderRadius: 2, background: "#E5E7EB", marginTop: 3, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: mc.pct + "%", borderRadius: 2, background: mc.pct === 100 ? "#34D399" : mc.pct > 0 ? "#FBBF24" : "transparent" }} />
+                    </div>
+                    <div style={{ fontSize: 8, color: "#9CA3AF", marginTop: 1 }}>{mc.done}/{mc.total}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* FILTERS */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+                {[{ v: "all", l: "全部" }, { v: "ref", l: "📘" }, { v: "supp", l: "📙" }].map(f => (
+                  <Pill key={f.v} label={f.l} color={f.v === "all" ? "#6B7280" : (PL[f.v] ? PL[f.v].color : "#6B7280")} active={fP === f.v} onClick={() => setFP(f.v)} small />
+                ))}
+                <span style={{ color: "#D1D5DB" }}>│</span>
+                <Pill label="全" color="#6B7280" active={fC === "all"} onClick={() => setFC("all")} small />
+                {Object.entries(CATS).map(([k, v]) => (
+                  <Pill key={k} label={v.icon} color="#6B7280" active={fC === k} onClick={() => setFC(k)} small />
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => setShowReport(true)} style={{ background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>📋</button>
+                <button onClick={() => setShowClone(true)} style={{ background: "#fff", border: "1.5px solid #E5E7EB", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, cursor: "pointer" }}>📅</button>
+                <button onClick={openNew} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "5px 12px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>＋</button>
+              </div>
+            </div>
+
+            {/* STATS */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5, marginBottom: 10 }}>
+              {[
+                { l: "總", v: mSt.total, c: "#374151", bg: "#fff" },
+                { l: "完成", v: mSt.done, c: "#059669", bg: "#ECFDF5" },
+                { l: "進行", v: mSt.ip, c: "#D97706", bg: "#FFFBEB" },
+                { l: "待辦", v: mSt.pd, c: "#9CA3AF", bg: "#F9FAFB" },
+              ].map(s => (
+                <div key={s.l} style={{ background: s.bg, borderRadius: 8, padding: "6px 8px", textAlign: "center", border: "1px solid #F0F0F0" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: s.c }}>{s.v}</div>
+                  <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* TASK LISTS */}
+            {Object.entries(CATS).map(([ck, ci]) => {
+              if (fC !== "all" && fC !== ck) return null;
+              const items = grouped[ck] || [];
+              return (
+                <div key={ck} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5, paddingBottom: 4, borderBottom: "2px solid #E5E7EB" }}>
+                    <span style={{ fontSize: 14 }}>{ci.icon}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{ci.label}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "#F3F4F6", color: "#6B7280", padding: "1px 6px", borderRadius: 6 }}>{items.length}</span>
+                  </div>
+                  {items.length === 0 && <div style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", padding: 6, fontStyle: "italic" }}>無</div>}
+                  {items.map(t => <TaskCard key={t.id} task={t} onEdit={tk => { setEditTask(tk); setIsNew(false); }} onToggle={toggle} />)}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* MODALS */}
+      {editTask && <TaskEd task={editTask} isNew={isNew} onSave={saveTask} onDel={delTask} onClose={() => { setEditTask(null); setIsNew(false); }} />}
+      <ReportMd open={showReport} onClose={() => setShowReport(false)} tasks={tasks} month={selM} />
+      <Modal open={showClone} onClose={() => setShowClone(false)} title="📅 複製年度" width={400}>
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <div style={{ fontSize: 36 }}>📅</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>複製到新年度</div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>結構+經驗保留，狀態重設</div>
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={() => setShowClone(false)} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
+          <button onClick={() => {
+            setTasks(tasks.map((t, i) => ({
+              ...t, id: "tc" + Date.now() + "_" + i, status: "pending",
+              subs: t.subs.map((s, si) => ({ ...s, id: "sc" + Date.now() + "_" + si, status: "pending", deadline: "" })),
+            })));
+            setShowClone(false);
+          }} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "7px 22px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>確認複製</button>
+        </div>
+      </Modal>
+      <DataMd open={showData} onClose={() => setShowData(false)} tasks={tasks} todos={todos} tools={tools} notes={notes} mktg={mktg} memos={memos} setTasks={setTasks} setTodos={setTodos} setTools={setTools} setNotes={setNotes} setMktg={setMktg} setMemos={setMemos} />
+      <PaGuide open={showPA} onClose={() => setShowPA(false)} />
+
+      {/* Cloud Sync Modal */}
+      <Modal open={showCloud} onClose={() => setShowCloud(false)} title="☁️ 雲端同步設定" width={480}>
+        {ghCfg && ghCfg.token ? (
+          <div>
+            <div style={{ padding: "14px 16px", background: "#ECFDF5", borderRadius: 12, border: "1px solid #A7F3D0", marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                <span style={{ fontSize: 20 }}>☁️✓</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#059669" }}>已連線</span>
+              </div>
+              <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6 }}>
+                帳號：{ghCfg.owner}<br />Repo：{ghCfg.repo}<br />資料會在修改後 3 秒自動同步到雲端
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={cloudPull} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📥 從雲端下載</button>
+              <button onClick={() => { doCloudPush(); alert("手動同步中..."); }} style={{ background: "#fff", border: "1.5px solid " + A, color: A, borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>📤 手動上傳</button>
+              <button onClick={cloudDisconnect} style={{ background: "#fff", border: "1.5px solid #EF4444", color: "#EF4444", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>中斷連線</button>
+            </div>
+            <div style={{ marginTop: 14, fontSize: 11, color: "#9CA3AF", lineHeight: 1.6 }}>
+              ⚠️ 如果兩台裝置同時編輯，後存的會覆蓋先存的。建議換裝置時先按「📥 從雲端下載」。
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ padding: "12px 16px", background: "#F0F9FF", borderRadius: 12, border: "1px solid #BAE6FD", marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#0369A1", marginBottom: 4 }}>設定 GitHub 雲端同步</div>
+              <div style={{ fontSize: 11, color: "#374151", lineHeight: 1.7 }}>
+                設定後，資料會自動存到你的 GitHub repository。<br />公司電腦、家裡電腦、手機打開同一個網址就能同步。
+              </div>
+            </div>
+            <FW><FL>GitHub 帳號名稱</FL><Inp value={ghForm.owner} onChange={e => setGhForm(p => ({ ...p, owner: e.target.value }))} placeholder="例：your-username" /></FW>
+            <FW><FL>Repository 名稱</FL><Inp value={ghForm.repo} onChange={e => setGhForm(p => ({ ...p, repo: e.target.value }))} placeholder="例：work-system" /></FW>
+            <FW>
+              <FL>Personal Access Token（ghp_ 開頭）</FL>
+              <Inp type="password" value={ghForm.token} onChange={e => setGhForm(p => ({ ...p, token: e.target.value }))} placeholder="ghp_xxxxxxxxxxxx" />
+            </FW>
+            <button onClick={cloudSaveConfig} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 14, fontWeight: 700, cursor: "pointer", width: "100%" }}>連線並同步</button>
+
+            <div style={{ marginTop: 16, padding: "12px 14px", background: "#FEF3C7", borderRadius: 10, border: "1px solid #FDE68A" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 4 }}>📌 Token 怎麼取得？</div>
+              <div style={{ fontSize: 11, color: "#92400E", lineHeight: 1.8 }}>
+                1. 到 github.com → 右上角頭像 → Settings<br />
+                2. 左邊最下面 → Developer settings<br />
+                3. Personal access tokens → Tokens (classic)<br />
+                4. Generate new token (classic)<br />
+                5. Note 填「工作系統」，Expiration 選 No expiration<br />
+                6. 勾選 repo（第一個勾就好）<br />
+                7. 按 Generate token → 複製 ghp_ 開頭的字串
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
