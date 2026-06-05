@@ -713,6 +713,7 @@ function TodoPg({ todos, setTodos, tasks, setTasks }) {
 /* ═══════ TOOLS PAGE ═══════ */
 /* ═══════ TOOLS PAGE ═══════ */
 const TOOL_CATS = [
+  { v: "myapp", l: "🚀 我的應用", color: "#7C3AED" },
   { v: "sap", l: "💻 SAP/系統", color: "#0369A1" },
   { v: "shipping", l: "📦 出貨", color: "#B45309" },
   { v: "print", l: "🖨️ 印量", color: "#7C3AED" },
@@ -804,7 +805,11 @@ function ToolsPg({ tools, setTools }) {
                     </div>
                     {tool.purpose && <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.5 }}>{tool.purpose.length > 80 ? tool.purpose.slice(0, 80) + "..." : tool.purpose}</div>}
                     <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
-                      {tool.url && <a href={tool.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗 連結</a>}
+                      {tool.url && (tool.category === "myapp" ? (
+                        <a href={tool.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 8, background: "#7C3AED", color: "#fff", textDecoration: "none" }}>🚀 開啟應用</a>
+                      ) : (
+                        <a href={tool.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗 連結</a>
+                      ))}
                       {tool.tags && tool.tags.split(",").filter(Boolean).slice(0, 4).map((tg, i) => (
                         <span key={i} style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: "#EDE9FE", color: "#7C3AED" }}>{tg.trim()}</span>
                       ))}
