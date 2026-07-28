@@ -337,8 +337,7 @@ function TaskEd({ task, onSave, onClose, onDel, isNew }) {
 
       <div style={{ marginBottom: 12 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>子項目</span>
-          <button onClick={addSub} style={{ background: A, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>＋ 新增</button>
+          <span style={{ fontSize: 13, fontWeight: 700 }}>子項目 ({f.subs.length})</span>
         </div>
         {f.subs.length === 0 && <div style={{ fontSize: 12, color: "#D1D5DB", textAlign: "center", padding: 8, fontStyle: "italic" }}>尚無子項目</div>}
         {f.subs.map((sub, i) => (
@@ -359,9 +358,10 @@ function TaskEd({ task, onSave, onClose, onDel, isNew }) {
             <FL>AI 輔助</FL><AiPick value={sub.aiTool} onChange={v => setSub(i, "aiTool", v)} />
           </div>
         ))}
+        <button onClick={addSub} style={{ background: A, color: "#fff", border: "none", borderRadius: 10, padding: "9px 0", fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%", marginTop: 4 }}>＋ 新增子項目</button>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F3F4F6" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px solid #F3F4F6", position: "sticky", bottom: 0, background: "#fff", paddingBottom: 4 }}>
         <div>{!isNew && <button onClick={() => { onDel(task.id); onClose(); }} style={{ background: "none", border: "1.5px solid #EF4444", color: "#EF4444", borderRadius: 10, padding: "7px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>刪除</button>}</div>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onClose} style={{ background: "#F3F4F6", border: "none", borderRadius: 10, padding: "7px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: "#6B7280" }}>取消</button>
