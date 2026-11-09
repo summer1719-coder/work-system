@@ -48,6 +48,8 @@ const STM = {
 const A = "#1B6B93";
 const F = "'Noto Sans TC','Helvetica Neue',sans-serif";
 
+const MONTHLY_GUIDE = {1:["出貨：參補集批出貨","印量：各項加刷","設定量與調書：參考書調設定量與調書作業","目標達成率公告","參考書同業價格分析","參行銷提案","參價格評估"],2:["出貨：參補調書作業","印量：加刷；庫存加刷公告","目標達成率公告","參價格簽呈","參考書結帳辦法意見調查","財報差異說明"],3:["調書：參考書調書作業","印量：補充加刷；庫存加刷公告印量分析","目標達成率公告","版版補充樣書調查蓋章與印量","補充報廢","參批價辦法","明霖授權合約","全區會議"],4:["補充樣書出貨","庫存修訂討論","參考書報廢","銷售各式表單","版版批價作業","實銷銷售分析","參考書行銷執行"],5:["印量：參補一刷、勘誤印量","庫存修訂討論","銷售前各項設定作業(含舊版配發)","核算表修訂","啟動公關書作業","實銷銷售分析","參考書行銷規劃執行"],6:["參補集批出貨規劃","印量：參二刷(含公關書)","參銷售前置完成(條碼表等)","公關書作業","設定量作業","參批價作業","版版議價規格表","參考書行銷規劃執行"],7:["出貨：參補集批出貨","設定量與調書：參考書調設定量","印量：補二刷","參補目標設定","預算修訂","全區頒獎、經銷商頒獎"],8:["出貨：參補集批出貨；公關書；業務備留量","設定量與調書作業","印量：加刷；庫存加刷公告","目標達成率公告","同業價格分析","momo網路銷售","門市店頭廣宣","預算差異說明"],9:["調書：參考書調書作業","印量：補充加刷；庫存加刷公告","補充報廢","目標達成率公告","公關書啟動","庫存修訂討論","momo網路銷售"],10:["版版補充一刷","參考書報廢","庫存修訂討論","樣書調查蓋章與印量","實銷分析","公關書作業","銷售各式表單","版版補充批價","評量用紙評估","momo銷售效益評估"],11:["出貨：版版補充樣書","印量：參一刷(含公關書)；勘誤等","庫存修訂討論","銷售前各項設定作業","核算表修訂","設定量啟動","產品規格/規格異動啟動","參銷售分析","預算"],12:["出貨：參補集批；公關書；業務備留量","參銷售前置完成(條碼表等)","設定量與調書作業","版版補充議價規格表","參補目標量提報","產品規格確認","參行銷提案"]};
+
 async function sLoad(k) {
   try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; }
   catch { return null; }
@@ -373,7 +375,7 @@ function TaskEd({ task, onSave, onClose, onDel, isNew }) {
 }
 
 /* ═══════ TASK CARD ═══════ */
-function TaskCard({ task, onEdit, onToggle }) {
+function TaskCard({ task, onEdit, onToggle, onSubToggle }) {
   const [exp, setExp] = React.useState(false);
   const prods = getProds(task.product);
   const ai = task.aiTool ? AIT.find(a => a.id === task.aiTool) : null;
@@ -409,15 +411,19 @@ function TaskCard({ task, onEdit, onToggle }) {
           {exp && task.subs.map((sub, si) => {
             const sa = sub.aiTool ? AIT.find(a => a.id === sub.aiTool) : null;
             return (
-              <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0 5px 14px", borderLeft: "2px solid #E5E7EB", marginLeft: 4, marginTop: si === 0 ? 5 : 0 }}>
-                <Dot status={sub.status} size={6} />
+              <div key={sub.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0 5px 14px", borderLeft: "2px solid " + (sub.status === "done" ? "#34D399" : "#E5E7EB"), marginLeft: 4, marginTop: si === 0 ? 5 : 0 }}>
+                <button onClick={() => onSubToggle && onSubToggle(task.id, sub.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }} title="點擊切換狀態">
+                  <Dot status={sub.status} size={8} />
+                </button>
                 <span style={{ fontSize: 12, flex: 1, color: sub.status === "done" ? "#9CA3AF" : "#374151", textDecoration: sub.status === "done" ? "line-through" : "none" }}>{sub.title}</span>
                 {sub.deadline && <span style={{ fontSize: 9, fontWeight: 700, color: dlColor(sub.deadline), whiteSpace: "nowrap" }}>📅{sub.deadline}</span>}
                 {sa && <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 6, background: sa.color + "15", color: sa.color, fontWeight: 600 }}>{sa.icon}</span>}
+                {sub.note && <span style={{ fontSize: 9, color: "#9CA3AF" }} title={sub.note}>📝</span>}
                 {sub.url && <a href={sub.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: A }}>🔗</a>}
               </div>
             );
           })}
+          {exp && task.exp && <div style={{ fontSize: 10, color: "#B45309", background: "#FEF3C7", borderRadius: 8, padding: "6px 10px", marginTop: 6, lineHeight: 1.5 }}>💡 <b>經驗累積：</b>{task.exp}</div>}
         </div>
         <IB onClick={() => onEdit(task)}>✏️</IB>
       </div>
@@ -803,7 +809,7 @@ function ToolsPg({ tools, setTools }) {
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#1F2937" }}>{tool.name || "未命名"}</span>
                       {ai && <span style={{ fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 6, background: ai.color + "15", color: ai.color }}>{ai.label}</span>}
                     </div>
-                    {tool.purpose && <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.5 }}>{tool.purpose.length > 80 ? tool.purpose.slice(0, 80) + "..." : tool.purpose}</div>}
+                    {tool.purpose && <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.5 }}>{tool.purpose}</div>}
                     <div style={{ display: "flex", gap: 4, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
                       {tool.url && (tool.category === "myapp" ? (
                         <a href={tool.url} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 8, background: "#7C3AED", color: "#fff", textDecoration: "none" }}>🚀 開啟應用</a>
@@ -2277,7 +2283,12 @@ function App() {
       const [t, td, tl, nt, zm, mk, me] = await Promise.all([sLoad("wv5t"), sLoad("wv5d"), sLoad("wv5l"), sLoad("wv5n"), sLoad("wv5z"), sLoad("wv5m"), sLoad("wv5me")]);
       setTasks(t || defTasks());
       setTodos(td || []);
-      setTools(tl || []);
+      setTools(tl || [
+        { id: "tl_sap", name: "SAP ERP", purpose: "庫存、印量、出貨、供需報表等核心系統。常用交易碼：ZPP12/14(供需)、Zmm093(可用量)、MM17(產品分配)、ZSD125(目標達成)、MB51(入庫)、MB5B(庫存異動)、ZBmm041(大批建版次)、ZSD539(公關書匯入)。", url: "", category: "myapp", tags: "SAP,ERP,庫存,印量", createdAt: "2025-01-01" },
+        { id: "tl_weborder", name: "經銷商網訂系統", purpose: "經銷商線上訂貨平台，管理期別設定、設定量日期、上架產品、銷售版次、公告事項等。網址：weborder.knsh.com.tw:81", url: "https://weborder.knsh.com.tw:81/", category: "myapp", tags: "網訂,經銷商,訂單", createdAt: "2025-01-01" },
+        { id: "tl_momo", name: "momo供應商後台", purpose: "momo購物網供應商管理後台，處理產品上架、補貨、轉撥計價申請等。網址：scm.momoshop.com.tw", url: "https://scm.momoshop.com.tw/manage/login.jsp", category: "myapp", tags: "momo,電商,上架", createdAt: "2025-01-01" },
+        { id: "tl_wiki", name: "交接百科", purpose: "完整工作交接知識庫，涵蓋34個主題、7大分類，含搜尋功能。", url: "wiki.html", category: "myapp", tags: "交接,百科,知識庫", createdAt: "2025-01-01" },
+      ]);
       setNotes(nt || []);
       setMktg(mk || []);
       setMemos(me || []);
@@ -2363,6 +2374,7 @@ function App() {
   };
 
   const toggle = React.useCallback(id => setTasks(p => p.map(t => t.id === id ? { ...t, status: STC[(STC.indexOf(t.status) + 1) % 3] } : t)), []);
+  const toggleSub = React.useCallback((taskId, subId) => setTasks(p => p.map(t => t.id === taskId ? { ...t, subs: t.subs.map(s => s.id === subId ? { ...s, status: STC[(STC.indexOf(s.status) + 1) % 3] } : s) } : t)), []);
   const saveTask = React.useCallback(u => setTasks(p => { const ex = p.find(t => t.id === u.id); return ex ? p.map(t => t.id === u.id ? u : t) : [...p, u]; }), []);
   const delTask = React.useCallback(id => setTasks(p => p.filter(t => t.id !== id)), []);
 
@@ -2411,7 +2423,7 @@ function App() {
 
   return (
     <div style={{ fontFamily: F, background: "#F5F3EE", minHeight: "100vh", color: "#1A1A1A", zoom: zoom }}>
-      
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet" />
 
       {/* HEADER */}
       <div style={{ background: "linear-gradient(140deg, #0D1B2A 0%, #1B2838 40%, #1B6B93 100%)", padding: "14px 20px 0", color: "#fff" }}>
@@ -2513,6 +2525,22 @@ function App() {
               })}
             </div>
 
+            {/* MONTHLY GUIDE */}
+            {(() => {
+              const mg = MONTHLY_GUIDE[selM + 1] || [];
+              return mg.length > 0 && (
+                <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>📅 {MONTHS[selM]}工作指引</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {mg.map((item, i) => (
+                      <span key={i} style={{ fontSize: 11, background: "#FEF3C7", color: "#78350F", padding: "3px 8px", borderRadius: 6, lineHeight: 1.4 }}>{item}</span>
+                    ))}
+                  </div>
+                  <a href="wiki.html" target="_blank" style={{ fontSize: 10, color: "#B45309", marginTop: 6, display: "inline-block" }}>📖 查看完整交接百科 →</a>
+                </div>
+              );
+            })()}
+
             {/* FILTERS */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
               <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
@@ -2559,7 +2587,7 @@ function App() {
                     <span style={{ fontSize: 10, fontWeight: 700, background: "#F3F4F6", color: "#6B7280", padding: "1px 6px", borderRadius: 6 }}>{items.length}</span>
                   </div>
                   {items.length === 0 && <div style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", padding: 6, fontStyle: "italic" }}>無</div>}
-                  {items.map(t => <TaskCard key={t.id} task={t} onEdit={tk => { setEditTask(tk); setIsNew(false); }} onToggle={toggle} />)}
+                  {items.map(t => <TaskCard key={t.id} task={t} onEdit={tk => { setEditTask(tk); setIsNew(false); }} onToggle={toggle} onSubToggle={toggleSub} />)}
                 </div>
               );
             })}
@@ -2647,8 +2675,8 @@ function App() {
   );
 }
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
 </script>
 </body>
 </html>

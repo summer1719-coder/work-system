@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>交接百科 — 版對版參補工作知識庫</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap">
+<style>
+:root {
+  --bg: #F8FAFC; --card: #FFFFFF; --border: #E2E8F0;
+  --fg: #1E293B; --fg2: #64748B; --fg3: #94A3B8;
+  --accent: #2563EB; --accent-bg: #EFF6FF;
+  --search-bg: #FFFFFF; --search-border: #CBD5E1;
+  --tag-bg: #F1F5F9; --tag-active: #2563EB; --tag-active-fg: #FFF;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0F172A; --card: #1E293B; --border: #334155;
+    --fg: #F1F5F9; --fg2: #94A3B8; --fg3: #64748B;
+    --accent: #60A5FA; --accent-bg: #1E3A5F;
+    --search-bg: #1E293B; --search-border: #475569;
+    --tag-bg: #334155; --tag-active: #60A5FA; --tag-active-fg: #0F172A;
+    --shadow: 0 1px 3px rgba(0,0,0,.3);
+    color-scheme: dark;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', sans-serif;
+  background: var(--bg); color: var(--fg);
+  line-height: 1.6; min-height: 100vh;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+
+/* Header */
+.header { text-align: center; padding: 32px 0 24px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+.header .sub { font-size: 14px; color: var(--fg2); }
+.back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; color: var(--accent); text-decoration: none; }
+.back-link:hover { text-decoration: underline; }
+
+/* Search */
+.search-box {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg); padding: 12px 0;
+}
+.search-inner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--search-bg); border: 1.5px solid var(--search-border);
+  border-radius: 10px; padding: 10px 14px;
+  transition: border-color .2s;
+}
+.search-inner:focus-within { border-color: var(--accent); }
+.search-inner svg { flex-shrink: 0; color: var(--fg3); }
+.search-inner input {
+  flex: 1; border: none; background: transparent; outline: none;
+  font-size: 15px; color: var(--fg); font-family: inherit;
+}
+.search-inner input::placeholder { color: var(--fg3); }
+.search-count { font-size: 12px; color: var(--fg3); white-space: nowrap; }
+
+/* Category Tabs */
+.cat-tabs {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  padding: 8px 0 16px; justify-content: center;
+}
+.cat-tab {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  background: var(--tag-bg); color: var(--fg2);
+  border: none; cursor: pointer; transition: all .2s;
+}
+.cat-tab:hover { background: var(--border); }
+.cat-tab.active { background: var(--tag-active); color: var(--tag-active-fg); }
+.cat-tab .count { font-size: 11px; opacity: .7; margin-left: 2px; }
+
+/* Monthly Guide Toggle */
+.monthly-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin: 0 0 20px; padding: 10px 20px; border-radius: 10px;
+  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
+  color: #92400E; font-size: 14px; font-weight: 500;
+  cursor: pointer; border: none; width: 100%;
+  transition: transform .1s;
+}
+.monthly-toggle:active { transform: scale(.98); }
+@media (prefers-color-scheme: dark) {
+  .monthly-toggle { background: linear-gradient(135deg, #78350F, #92400E); color: #FDE68A; }
+}
+
+/* Monthly Panel */
+.monthly-panel {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 20px;
+  box-shadow: var(--shadow); overflow: hidden;
+  display: none;
+}
+.monthly-panel.show { display: block; }
+.month-tabs {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border-bottom: 1px solid var(--border); padding: 8px 12px 0;
+}
+.month-tab {
+  padding: 6px 12px; font-size: 13px; font-weight: 500;
+  border: none; background: none; color: var(--fg3); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all .15s;
+}
+.month-tab:hover { color: var(--fg2); }
+.month-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.month-content {
+  padding: 16px 20px;
+}
+.month-content li {
+  padding: 4px 0; font-size: 14px; color: var(--fg);
+  list-style: none; position: relative; padding-left: 16px;
+}
+.month-content li::before {
+  content: "•"; position: absolute; left: 0; color: var(--accent);
+}
+
+/* Section Cards */
+.cat-group { margin-bottom: 28px; }
+.cat-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 18px; font-weight: 700; margin-bottom: 12px;
+  padding-left: 4px;
+}
+.cat-header .dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.section-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); margin-bottom: 10px;
+  box-shadow: var(--shadow); overflow: hidden;
+  transition: border-color .2s;
+}
+.section-card.highlight { border-color: var(--accent); }
+.section-title {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; user-select: none;
+  font-size: 15px; font-weight: 600; gap: 8px;
+}
+.section-title:hover { background: var(--accent-bg); }
+.section-title .arrow {
+  flex-shrink: 0; transition: transform .2s;
+  color: var(--fg3); font-size: 12px;
+}
+.section-title .arrow.open { transform: rotate(90deg); }
+.section-body {
+  display: none; padding: 0 18px 16px; font-size: 14px;
+  color: var(--fg); line-height: 1.8;
+}
+.section-body.show { display: block; }
+.section-body p {
+  margin: 4px 0; padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+  word-break: break-word;
+}
+.section-body p:last-child { border-bottom: none; }
+mark {
+  background: #FDE68A; color: #1E293B; padding: 1px 3px; border-radius: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  mark { background: #92400E; color: #FDE68A; }
+}
+
+/* No results */
+.no-results {
+  text-align: center; padding: 48px 20px; color: var(--fg3);
+  font-size: 15px;
+}
+
+/* Footer */
+.footer {
+  text-align: center; padding: 32px 0 16px;
+  font-size: 12px; color: var(--fg3);
+  border-top: 1px solid var(--border); margin-top: 24px;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .header h1 { font-size: 22px; }
+  .month-tab { padding: 5px 8px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div class="container" id="app">
+  <div class="header">
+    <a class="back-link" href="index.html">← 回到工作管理系統</a>
+    <h1>📖 交接百科</h1>
+    <div class="sub">版對版參補工作知識庫 — 共 <span id="totalCount">0</span> 個主題</div>
+  </div>
+
+  <div class="search-box">
+    <div class="search-inner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="searchInput" placeholder="搜尋關鍵字，例：報廢、印量、SAP..." autocomplete="off">
+      <span class="search-count" id="searchCount"></span>
+    </div>
+  </div>
+
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <button class="monthly-toggle" id="monthlyToggle" onclick="toggleMonthly()">
+    📅 本月工作指引（點擊展開 12 個月工作重點）
+  </button>
+  <div class="monthly-panel" id="monthlyPanel">
+    <div class="month-tabs" id="monthTabs"></div>
+    <div class="month-content" id="monthContent"></div>
+  </div>
+
+  <div id="sections"></div>
+  <div class="no-results" id="noResults" style="display:none">🔍 沒有找到符合的內容</div>
+
+  <div class="footer">交接百科 · 115年度版對版參補 · 瑋育整理</div>
+</div>
+
+<script>
+// ===== DATA =====
+const WIKI_CATS = [
+{id:"overview",icon:"📋",label:"工作總覽",color:"#1B6B93",sections:[{title:"工作概覽",content:["版對版參補工作交接1110930"]},{title:"工作內容",content:["1.目標量作業：每學期目標設定與達成追蹤。","2.預算作業：預算編列、修訂、差異說明。","3.產品規格：產品規格制定調整，參考＜產品＞或＜行銷企畫＞資料夾。","4.行銷：樣書、廣宣、明霖評量授權(適康版資料夾)、momo、評量提升。（評量出版適用版評估另詳資料夾、安親班資料詳資料夾 ）","5.價格：定價、批價（與後扣核算）、分析(P8-10)","6.印量作業：庫存處理、報廢、庫存與加刷公告、庫存配銷、印量分析。","7.產銷作業：結帳辦法、產銷協調、出貨排程、設定量、調書、各式表單(ISBN)、網訂系統、檢舉、ISBN、調書。-","8.銷售分析：產品線銷售分析、參考書經銷商銷售分析等。","10.其他：市府版甲乙本授權、公關書、免費用書、客服信箱、客服發行打單轉單、博客來、常用SAP交易。","11.請先了解學科轄區(11區、123.124.125.133.134.143.144.145.152.163.164)"]},{title:"各月工作重點",content:["P:\\營業一處\\04.行企組(權限)\\5.行企組會議\\工作進度追蹤"]},{title:"ID",content:["SAP-1101001、1695 1101003、Knsh1101003","經銷商網訂https://weborder.knsh.com.tw:81/     M1002、16951695","Momo　https://scm.momoshop.com.tw/manage/login.jsp","23142092、(康軒國小)55220000、OTP(手機請下載momoSCM工具程式)"]}]},
+{id:"target",icon:"🎯",label:"目標與預算",color:"#7C3AED",sections:[{title:"目標量",content:["一、制定：","1.目標量制定時間(每學期)與制定原則，請參考前學年度檔案與說明(需書面簽核至副總)，制定原則需考量市場狀況調整(例:調價)，注意經銷商異動狀況。","2.此為區經理KPI考核依據，需公告。","3.補充全區目標原則確認後，再製作分區。","二、目標達成率公告","1.公告時間與SAP報表","(1)約7月底、12月底公告～開學第三週，每週四公告。","(2)使用報表：zsd125，SAP變式如下，注意產品異動調整料號(學講逐年停售)","2.注意事項：","(1)補充經銷商使用率，每學期需注意經銷商客編：例-教科書：桃園上益FFA020＋合益FFA035、光合FAA137跨北一＋北二、高一學悅前期是南興FSA001等等。賸鑫與上益跨桃園、桃竹區，由桃園管理，補充經銷商達成率需加總。","(2)3.9.10三個月需維護主管會議銷售資料（玉靜通知）","(3)參－經銷商；補－分產品線、轄區、經銷商。","(4)參考excel篩選條件，注意目標追蹤是訂單量非出貨量","(5)參考書沒有英評","(6)補充教材要剃除教用、首、乙本","(7)期別因僑校會五月來單，所以日期5/1~10/31、11/1~4/30","(目標達成率不會滾教用；110(2)桃、竹業務調整、114(1)增加雲嘉區)","（本端檔案可轉成excel另存，再篩出所需資料）"]},{title:"預算編列與修訂",content:["1.0版預算(11月)、1版修正(7月)、價量分析(即差異說明).....配合財務時間。","2.預算編列原則詳工作底稿。","3.注意：需提供教科書伙伴國小索國中公關書資料(詳檔案)"]}]},
+{id:"shipping",icon:"📦",label:"出貨與庫存",color:"#059669",sections:[{title:"出貨排程",content:["1.參補通常集兩批出貨，提高專車比例。參考前期規劃，若有市場意見再調整。","2.開學或放假前後延長收單為參考書類，時間配合國中輔材，另發國小公告。","3.每批轉單前要看入庫量與訂單量（小參第一批）","4.補充可指定到校或經銷商，但不可以分班包裝(評估重新啟動請客服進行分班核算收費)。111(1)開始收運費分攤(詳mail與檔案)。112(2)出貨前要再發經銷商公告提醒(注意時間，上學期已開始規避)"]},{title:"設定量",content:["1.請慧萍設EIS期別等資料","2.各區excel回傳後檢視EIS總量(差幾本沒關係)，分配原則參考檔案，要留門市與調量。","3.預估使用率－使用率彙總查詢－分區檢核總設定量","4.全部完成後進行SAP產品分配：MM17變式<產品分配>","5. ezis006，維護配發比例100，每一筆物料維護完要儲存。全部科冊維護完通知客服（踩腳踏車），全省完成請慧萍測訂單，看是否打單有卡設定量。增量：依據轄區別維護於黃底，總設定量不可低於備貨量（通常會留300本以上）","6.開放設定量：MM17執行<產品分配>，倒入除教用外的參考書料號，用執行大量更改，將Knsh-s888刪除、網訂系統的ZSAW01設定量結束日改為開放日","開始執行設定量","1.MM17:執行變式<產品分配>，匯入參料號(除教用)，鍵入Knsh-s888","ZEIS006","1~3.照順序鍵入","4.分配100比例用","5.為增減量才用，每一個步驟都請按儲存","網訂系統開關設定量，參補都需要，參設定量由行企->客服設定，補由客服設定"]},{title:"調貨",content:["1.參考書:公司調回，作業如下，通常缺書量大會啟動調回。","2.調書單：業務調貨使用，國中小共用，若需加刷請詢問國中輔材行企。"]},{title:"報廢與庫存處理",content:["1.編輯會先啟動庫存修訂討論（行企提供庫存量）：參一定是新舊混用、補儘量混用。(註:自修4~6學習網廣告、庫存處理)","2.報廢時間依規定如下，編輯修訂建議完成日與編務處討論，至少預留一週製作報廢簽呈，能提早更好。","3.補充有備留量（當樣書）","4.舊版次如果未上過報廢簽呈，需一併提出。","5.庫存處理：貼貼紙、夾頁，製作印量(注意調查經銷商庫存、後續要配發貼紙並提供貼貼紙指引)。編輯問題由編輯上發行工單，若為行企處理由行企上工單。","6.學習網廣告~5.6年級家長詢問庫存因應待辦"]},{title:"公告庫存與加刷",content:["1.參考報表：同印量製作報表。注意晚上會凍結，上午解凍，或請發行伙伴解凍","2.開學前後兩週，通常每週2.4公告（客服同步傳給經銷商），有加刷可調整公告日。","3.同步維護SAP產品資料(缺書不刷等)"]},{title:"庫存配銷",content:["1.舊版配銷：修訂對照表、舊版可用庫存量、上學期銷量(下對上、上對上)。儘量集中縣市不要太分散，儘量不要配超過庫存量(尤其限區品項)。打單前完成SAP設定。","2.SAP執行舊版：檔案拋轉","3.出貨期經常檢視舊版使用狀況取消舊版配銷，或是新版不加印，全省再配舊版。","三、取消舊版："]}]},
+{id:"printing",icon:"🏭",label:"印務",color:"#D97706",sections:[{title:"產品印量",content:["1.提報時間：參考110。視缺書加刷(開學前兩週開始注意，視開學時間，第一~二週都有來單，第三週降低但會有單品項團訂大單，需參考後來單比例與改版狀況)","2.報表：供需ZPP12(14)。可用量Zmm093(建立者1101001)","參變式K1020201、K1020202；補變式K961010、K961020","3.注意：供需的＜訂單未出貨＞指訂單已轉出貨單（即已咬到量），確認是否已出貨回傳，以利判定＜實際可用量＞欄位。通常9點前會回傳。","4.發行相關：併箱、一刷等(加刷公告同步予發行)、版次(退書單、允退資料)。","5.大批建版次：ZBmm041","6.參考書非賣品與教師版確認印製後，mail通知編務處。","7.參考書不改版不改價則只有單一版次，補充每年印製新版次。","Zmm093變式(1101001)","ZPP12(14)畫面","SAP轉成excel檔案畫面","MB51入庫量","MB5B庫存異動"]},{title:"印量分析",content:["1.開學第4~5週製作印量分析，作為印量參考，報廢時也會使用此說明。","2.若不及製作，也要留存相關報表。"]},{title:"結帳辦法",content:["1.參考書國中小輪流上簽(111國中)。詢問相關單位(發行、客服、營二、營一業務協理)意見彙整上簽。","2.補充由組長上簽，提供補充縣市教耗配比(前一年，取用舊縣市分法)，參考檔案。","3.庫存與教耗核算同獎勵後扣說明。"]},{title:"產銷協調",content:["1.提醒業務需求日：確認日～入庫日需時3週。業務入庫日參考集批轉單日。","2.維護產品檔案。"]}]},
+{id:"price",icon:"💰",label:"價格與銷售",color:"#DC2626",sections:[{title:"產品價格相關",content:["1.定價調價：自己建議或政策調價；需上簽呈。參考書定價確認後需提供編務處美玲；補充封面無上價格。","2.門市價：練習100、重點120、習寫70/本-由右欣彙總。可再評估提高重點門市價(上下學期一致)，一般是團定價/0.6","3.批價：補充固定折扣（批價mail如下示例，分學期）；參考書每年約2月底3月初上辦法<銷售通路批價辦法>（111比較晚），參考書各區批價總表（先提供空白檔案予區經理）→簽至總經理後掃檔分區提供予協理、經理、客服。","4.同業價格分析：參每學期兩次(發mail供部級以上主管參考)、補充每學年一次(行企部內參考)。","同業資料請業務協助收集、上網查詢。參考書價格分析包含三家教科書出版、適版。","5.獎勵折扣依據辦法核算：SAP變式由行企制定，詳說明檔案。變式設定注意料號、版次、起迄時間（客服收完退書，可詢問客服組長，每年日期差異不大，可參考舊檔）"]},{title:"銷售分析",content:["1.參考書-產品線、區、經銷商。區與經銷商在每期出貨前提供業務主管參考，實銷分析。","2.補充-產品線、區，實銷分析。"]},{title:"銷售表單",content:["1.打單銷售前要完成的各式表單，請參考下列發送內容與對象。","2.條碼：發mail予美編（如下）。ISBN號碼會針對改版科冊會調整(備註於產品修訂對照表)","3.允退資料：補充教師版不可退。注意舊版出貨可退書，日期依據結帳辦法。"]},{title:"網訂系統",content:["1.修改期別(依據結帳辦法)，與國中輔材互通一下通知資訊部啟動新學期優先設定。","2.網訂資料除了公告事項，其他是SAP資料(如下專屬工作區，圖檔由K9拋轉)，要更新的設定如下:","(1)認列期別、設定量日期、上架產品主檔、銷售版次維護(拋檔案)、產品資訊維護、公告、產品資訊更新(批次重啟功能)","(2)可模擬經銷商介面，通常選旭儒(國中小)","(3)經銷商問題會傳mail給行企與客服，行企問題請於後台回覆。","(通常6月在學年產品異動時會禁止下網單)，使用使功能"]}]},
+{id:"marketing",icon:"📣",label:"行銷與產品",color:"#2563EB",sections:[{title:"產品規格",content:["1.新綱參考書完成高年級設定－8/1mail","2.補充教師版側邊－6/7mail，注意後續庫存使用問題(當樣書等)"]},{title:"樣書",content:["1.樣書排程與原則：參考＜估量說明＞檔案。","2.表格由行企製作，注意經銷商異動。","3.補充皆為銷售品，成書當樣書不論是否報廢，全部都要蓋樣書章。給發行檔案要分庫存與新印。並上工單。","4.zsd062可看樣書打單與庫存量檢核"]},{title:"廣宣",content:["每年11月規劃下學年度：目前雜誌廣告、門市小海報。","門市小海報彩印後配發各區，各區回報經銷商張貼狀況。","美編：發稿送製單、Notes編輯計費工作單","青山康橋需求參考書、非版補充封面(請光正上工單)，窗口-韋凱鳳老師，5月底、11月中"]},{title:"明霖評量授權",content:["1.大約2月底前簽約，2/10、8/10結算授權金（詳合約）","2.窗口－3234-6898、簽約林守亮副總 <lightlin1116@gmail.com>、付款陳淑芳fun0929@gmail.com"]},{title:"momo",content:["1.111(2)學期止。12月底通知對方停止國小產品上架（參考書、非版）。","2.出貨前完成上架，經銷商第一批出貨後才可出momo。","3.111(2)針對改版2.4年級參考書申請異動（封面、4年級評量價格等，依據系統指示逐步申請存檔），上工單向編輯要封面檔案。","4.12月底、6月底幼教轉撥計價申請。","5.幼教嘉君會通知補貨，再視庫存與momo庫存報表製作補貨單。","6. MD：鄭伊婷yt3cheng@fmt.com.tw　21626688#3214","（momo1為手機專推非版專用檔案、momo2為手機專推參考書通用檔案）"]},{title:"評量提升",content:["110(2)開始執行，針對衰退經銷商，由副總協同協理、行企於取單前親訪給予銷售壓力，取單期注意分析銷售數據，提供副總後續電話追蹤參考。"]}]},
+{id:"daily",icon:"🔧",label:"日常作業",color:"#6B7280",sections:[{title:"市府版甲乙本授權",content:["1.台北市:健康國小楊瑋芬主任25282814#111，加line。每年換約。(111-2尚未提供課本)。111學年度數量尚未提供。","2.新北市:編寫鶯歌國小王思凡承辦0989267173(111-2-尚缺2.6課本、教育局黃珮琇準校長0939058191，加line。111學年度數量尚未提供。","每年辦一場研習。","3.台中市:光復國小傅仁志主任04-22294174，111.08新接尚未互動。111學年數量確定待撥款。","台北、新北用書由公司出貨，通知客服打單"]},{title:"公關書",content:["1.參考書自修(生活評量)作為國中小業務贈送老師子女等使用，國小包含版本服務。","2.上學期:教科書開版率至少97.98%以上再跑SAP。(如下)","(1)給業務回覆的檔案與業務回覆檔案~檢查excel：客編、縣市對應、通用格式","(2)ZSD539匯入國小資料(excel)-比對EIS，匯入－excel國小資料、匯出－<報表>檔","(3)<明細>檔(即打單檔案)，報表資料貼到<002公關用書>、更新<樞紐分析>、更新業務姓名<業務明細>","(4)過到總表，由副總確認數量(或刪量)","(5)客服打單通知、需檢查完庫存與打單量再請客服轉單","3.下學期:上學期量+後來免費用書量，製表由副總核定。"]},{title:"免費用書訂單",content:["1.教科書類：會簽過去，讓教科書負責人處理（類別選錯不可同意）","2.開學前後期間單量比較多，每天都必須完成簽核，以應時效","3.補充學用不可領(或請示主管是否核准)；參考書只提供自修(生活為評量)，其他不可作為公關書","4.開學第二週起提供國小增補公關書、國中不限。","5.會簽請確認庫存狀況。"]},{title:"檢舉",content:["1.流程:參考檔案<營業一二處檢舉違反著作權侵權案件獎勵辦法>。","2.配合法務聯絡檢舉人。","3.檢舉專線02-86651345(部分產品與廣告會刊登)"]},{title:"客服信箱",content:["1.參考書類窗口。通常當天需回覆，三天(含假日)會稽催。","2.產品問題由編務處處理，其他問題行企處理，非參補問題請轉呈至正確人員","3.國語課文輕鬆聽APP問題窗口(數位部玲芳-264)，可先排除問題檔案如下","參考書\\行銷企畫\\110\\課文輕鬆聽客服（至20210902）.xlsx"]},{title:"同業換書",content:["1.待入庫齊全再提供，注意南一社會重點逐新綱提供。","2.參考提領單號(3套、寄件人)：9200035554.9200035555","3.參-編2、行企1；補-編1、教研1、行企1"]},{title:"客服發行打單轉單",content:["如附檔"]},{title:"博客來",content:["持續處理，詳8/9mail記錄"]},{title:"常用SAP交易",content:["(必要時再查詢)","(學期交換，啟動新版次)"]}]}
+];
+
+const MONTHLY_GUIDE = {1:["1.出貨：參補集批出貨。","2.印量：各項加刷。","3.設定量與調書：參考書調設定量與調書作業。","4.114(2)目標達成率公告。","5.參考書同業價格分析。","6.115參行銷提案。","7.115參價格評估。"],2:["1.出貨：參補調書作業。","2.印量：加刷；庫存加刷公告。","3.114(2)目標達成率公告。","4.115參價格簽呈。","5.115參考書結帳辦法意見調查（115輪營二上簽）。","6.財報差異說明(依據財務公告)"],3:["1.調書：參考書調書作業。","2.印量：補充加刷；庫存加刷公告印量分析；補電子簽等。","3.114(2)目標達成率公告。","4.版版補充：115(1)樣書調查蓋章與印量。","5.補充報廢。","6.115參批價辦法。","7.116-117明霖授權合約。","8.全區會議。"],4:["1.115(1)補充樣書出貨。","2.115(1)庫存修訂討論。","3.參考書報廢。","4.115銷售各式表單。","5.115版版批價作業。","6.114(1)實銷銷售分析。","7.115(1)參考書行銷執行。"],5:["1.印量：參補一刷、勘誤印量等。","2.115(1)庫存修訂討論。","3.115(1)銷售前各項設定作業(含舊版配發)。","4.114(2)核算表修訂。","5.啟動公關書作業。","6.114(1)實銷銷售分析。","7.115(1)參考書行銷規劃執行。"],6:["1.115(1)參補集批出貨規劃。","2.印量：參二刷(含公關書)。","3.115(1)參銷售前置完成(條碼表等)","4.115(1)公關書作業。","5.115(1)設定量作業。","6.115參批價作業。","7.115(1)版版議價規格表。","8.115(1)參考書行銷規劃執行。","9.高高屏補充議價協助。"],7:["1.出貨：參補集批出貨。","2.設定量與調書：參考書調設定量。","3.印量：補二刷。","4.115(1)參補目標設定。","5.預算修訂。","6.全區頒獎、經銷商頒獎。"],8:["1.出貨：參補集批出貨；公關書出貨；業務備留量出貨等。","2.設定量與調書：參考書調設定量與調書作業。","3.印量：加刷；庫存加刷公告。","4.115(1)目標達成率公告。","5.同業價格分析。","6.momo網路銷售。","7.業務協助門市店頭廣宣置放。","8.預算差異說明(依據財務公告)。"],9:["1.調書：參考書調書作業。","2.印量：補充加刷；庫存加刷公告印量分析；補電子簽等。","3.補充報廢。","4.115(1)目標達成率公告。","5.115(2)公關書啟動。","6.115(2)庫存修訂討論","7.momo網路銷售。"],10:["1.115(2)版版補充一刷。","2.參考書報廢。","3.115(2)庫存修訂討論。","4.115(2)樣書調查蓋章與印量。","5.銷售分析：104(2)實銷分析","6.115(2)公關書作業。","7.115(2)銷售各式表單。","8.115(2)版版補充批價。","9.節省成本作業：評量更改用紙增加年級評估。","10. momo網路銷售評估效益。"],11:["1.出貨：115(2)版版補充樣書。","2.印量：參一刷(含公關書)；各項勘誤、條碼貼紙等。","3.115(2)庫存修訂討論。","4.115(2)銷售前各項設定作業。","5.115(1)核算表修訂。","6.115(2)設定量啟動。","7.116版版補充產品規格、參考書規格異動啟動。","8.115(1)參銷售分析(設定量與預算使用)","9.預算(依據財務公告)"],12:["1.出貨：參補集批出貨；公關書出貨；業務備留量出貨等。","2.115(2)參銷售前置完成(條碼表等)","3.設定量與調書：參考書調設定量與調書作業","4.115(2)版版補充議價規格表。","5.115(2)參補目標量提報。","5.116產品規格確認。","6.116參行銷提案。","7.高高屏補充議價協助。"]};
+
+// ===== APP LOGIC =====
+let activeCat = "all";
+let openSections = new Set();
+let searchTerm = "";
+
+function init() {
+  document.getElementById("totalCount").textContent = WIKI_CATS.reduce((a, c) => a + c.sections.length, 0);
+  renderCatTabs();
+  renderMonthTabs();
+  renderSections();
+  document.getElementById("searchInput").addEventListener("input", function(e) {
+    searchTerm = e.target.value.trim().toLowerCase();
+    renderSections();
+  });
+}
+
+function renderCatTabs() {
+  var html = '<button class="cat-tab active" onclick="filterCat(\'all\')">全部</button>';
+  WIKI_CATS.forEach(function(c) {
+    html += '<button class="cat-tab" data-cat="'+c.id+'" onclick="filterCat(\''+c.id+'\')">' +
+      c.icon + ' ' + c.label + '<span class="count">'+c.sections.length+'</span></button>';
+  });
+  document.getElementById("catTabs").innerHTML = html;
+}
+
+function filterCat(id) {
+  activeCat = id;
+  document.querySelectorAll(".cat-tab").forEach(function(t) {
+    t.classList.toggle("active", id === "all" ? !t.dataset.cat : t.dataset.cat === id);
+  });
+  renderSections();
+}
+
+function renderMonthTabs() {
+  var now = new Date();
+  var curMonth = now.getMonth() + 1;
+  var html = "";
+  for (var m = 1; m <= 12; m++) {
+    html += '<button class="month-tab'+(m===curMonth?' active':'')+'" data-m="'+m+'" onclick="showMonth('+m+')">'+m+'月</button>';
+  }
+  document.getElementById("monthTabs").innerHTML = html;
+  showMonth(curMonth);
+}
+
+function showMonth(m) {
+  document.querySelectorAll(".month-tab").forEach(function(t) {
+    t.classList.toggle("active", parseInt(t.dataset.m) === m);
+  });
+  var items = MONTHLY_GUIDE[m] || [];
+  var html = "<ul>";
+  items.forEach(function(item) { html += "<li>" + escHtml(item) + "</li>"; });
+  html += "</ul>";
+  document.getElementById("monthContent").innerHTML = html;
+}
+
+function toggleMonthly() {
+  var panel = document.getElementById("monthlyPanel");
+  var btn = document.getElementById("monthlyToggle");
+  if (panel.classList.contains("show")) {
+    panel.classList.remove("show");
+    btn.textContent = "📅 本月工作指引（點擊展開 12 個月工作重點）";
+  } else {
+    panel.classList.add("show");
+    btn.textContent = "📅 收合月份指引";
+  }
+}
+
+function renderSections() {
+  var container = document.getElementById("sections");
+  var html = "";
+  var matchCount = 0;
+  var totalVisible = 0;
+
+  WIKI_CATS.forEach(function(cat) {
+    if (activeCat !== "all" && cat.id !== activeCat) return;
+
+    var catSections = "";
+    cat.sections.forEach(function(sec, si) {
+      var key = cat.id + "_" + si;
+      var titleMatch = searchTerm && sec.title.toLowerCase().indexOf(searchTerm) >= 0;
+      var contentMatch = searchTerm && sec.content.some(function(line) {
+        return line.toLowerCase().indexOf(searchTerm) >= 0;
+      });
+
+      if (searchTerm && !titleMatch && !contentMatch) return;
+      if (searchTerm) matchCount++;
+      totalVisible++;
+
+      var isOpen = openSections.has(key) || (searchTerm && (titleMatch || contentMatch));
+      var titleHtml = searchTerm ? highlightText(sec.title, searchTerm) : escHtml(sec.title);
+
+      catSections += '<div class="section-card'+(searchTerm && (titleMatch||contentMatch)?' highlight':'')+'">' +
+        '<div class="section-title" onclick="toggleSection(\''+key+'\')">' +
+        '<span>'+titleHtml+'</span>' +
+        '<span class="arrow'+(isOpen?' open':'')+'">▶</span></div>' +
+        '<div class="section-body'+(isOpen?' show':'')+'">';
+
+      sec.content.forEach(function(line) {
+        var lineHtml = searchTerm ? highlightText(line, searchTerm) : escHtml(line);
+        catSections += '<p>' + lineHtml + '</p>';
+      });
+      catSections += '</div></div>';
+    });
+
+    if (catSections) {
+      html += '<div class="cat-group">' +
+        '<div class="cat-header"><span class="dot" style="background:'+cat.color+'"></span>' +
+        cat.icon + ' ' + cat.label + '</div>' + catSections + '</div>';
+    }
+  });
+
+  container.innerHTML = html;
+  document.getElementById("noResults").style.display = totalVisible === 0 ? "block" : "none";
+  document.getElementById("searchCount").textContent = searchTerm ? ("符合 " + matchCount + " 項") : "";
+}
+
+function toggleSection(key) {
+  if (openSections.has(key)) openSections.delete(key); else openSections.add(key);
+  renderSections();
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function highlightText(text, term) {
+  var safe = escHtml(text);
+  var safeTerm = escHtml(term);
+  if (!safeTerm) return safe;
+  var regex = new RegExp("(" + safeTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+  return safe.replace(regex, "<mark>$1</mark>");
+}
+
+init();
+</script>
+</body>
+</html>
