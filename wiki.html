@@ -167,6 +167,42 @@ mark {
   mark { background: #92400E; color: #FDE68A; }
 }
 
+/* Edit mode */
+.edit-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 8px; font-size: 11px; color: var(--fg3); cursor: pointer;
+  transition: all .15s;
+}
+.edit-btn:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.edit-textarea {
+  width: 100%; min-height: 120px; border: 1.5px solid var(--accent);
+  border-radius: 8px; padding: 10px 12px; font-size: 13px;
+  font-family: inherit; color: var(--fg); background: var(--card);
+  line-height: 1.7; resize: vertical; outline: none;
+}
+.edit-actions { display: flex; gap: 6px; margin-top: 8px; justify-content: flex-end; }
+.edit-actions button {
+  padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: none;
+}
+.btn-save { background: var(--accent); color: #fff; }
+.btn-cancel { background: var(--tag-bg); color: var(--fg2); }
+.btn-save:hover { opacity: .85; }
+.btn-cancel:hover { background: var(--border); }
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: #059669; color: #fff; padding: 8px 20px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; z-index: 100; opacity: 0;
+  transition: opacity .3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.reset-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 4px 10px; font-size: 11px; color: var(--fg3); cursor: pointer;
+  margin-left: 8px;
+}
+.reset-btn:hover { color: #DC2626; border-color: #DC2626; }
+
 /* No results */
 .no-results {
   text-align: center; padding: 48px 20px; color: var(--fg3);
@@ -216,7 +252,11 @@ mark {
   <div id="sections"></div>
   <div class="no-results" id="noResults" style="display:none">🔍 沒有找到符合的內容</div>
 
-  <div class="footer">交接百科 · 115年度版對版參補 · 瑋育整理</div>
+  <div class="footer">
+    交接百科 · 115年度版對版參補 · 瑋育整理
+    <br><button class="reset-btn" onclick="resetAll()" style="margin-top:6px">🔄 還原所有修改</button>
+  </div>
+  <div class="toast" id="toast"></div>
 </div>
 
 <script>
@@ -233,10 +273,53 @@ const WIKI_CATS = [
 
 const MONTHLY_GUIDE = {1:["1.出貨：參補集批出貨。","2.印量：各項加刷。","3.設定量與調書：參考書調設定量與調書作業。","4.114(2)目標達成率公告。","5.參考書同業價格分析。","6.115參行銷提案。","7.115參價格評估。"],2:["1.出貨：參補調書作業。","2.印量：加刷；庫存加刷公告。","3.114(2)目標達成率公告。","4.115參價格簽呈。","5.115參考書結帳辦法意見調查（115輪營二上簽）。","6.財報差異說明(依據財務公告)"],3:["1.調書：參考書調書作業。","2.印量：補充加刷；庫存加刷公告印量分析；補電子簽等。","3.114(2)目標達成率公告。","4.版版補充：115(1)樣書調查蓋章與印量。","5.補充報廢。","6.115參批價辦法。","7.116-117明霖授權合約。","8.全區會議。"],4:["1.115(1)補充樣書出貨。","2.115(1)庫存修訂討論。","3.參考書報廢。","4.115銷售各式表單。","5.115版版批價作業。","6.114(1)實銷銷售分析。","7.115(1)參考書行銷執行。"],5:["1.印量：參補一刷、勘誤印量等。","2.115(1)庫存修訂討論。","3.115(1)銷售前各項設定作業(含舊版配發)。","4.114(2)核算表修訂。","5.啟動公關書作業。","6.114(1)實銷銷售分析。","7.115(1)參考書行銷規劃執行。"],6:["1.115(1)參補集批出貨規劃。","2.印量：參二刷(含公關書)。","3.115(1)參銷售前置完成(條碼表等)","4.115(1)公關書作業。","5.115(1)設定量作業。","6.115參批價作業。","7.115(1)版版議價規格表。","8.115(1)參考書行銷規劃執行。","9.高高屏補充議價協助。"],7:["1.出貨：參補集批出貨。","2.設定量與調書：參考書調設定量。","3.印量：補二刷。","4.115(1)參補目標設定。","5.預算修訂。","6.全區頒獎、經銷商頒獎。"],8:["1.出貨：參補集批出貨；公關書出貨；業務備留量出貨等。","2.設定量與調書：參考書調設定量與調書作業。","3.印量：加刷；庫存加刷公告。","4.115(1)目標達成率公告。","5.同業價格分析。","6.momo網路銷售。","7.業務協助門市店頭廣宣置放。","8.預算差異說明(依據財務公告)。"],9:["1.調書：參考書調書作業。","2.印量：補充加刷；庫存加刷公告印量分析；補電子簽等。","3.補充報廢。","4.115(1)目標達成率公告。","5.115(2)公關書啟動。","6.115(2)庫存修訂討論","7.momo網路銷售。"],10:["1.115(2)版版補充一刷。","2.參考書報廢。","3.115(2)庫存修訂討論。","4.115(2)樣書調查蓋章與印量。","5.銷售分析：104(2)實銷分析","6.115(2)公關書作業。","7.115(2)銷售各式表單。","8.115(2)版版補充批價。","9.節省成本作業：評量更改用紙增加年級評估。","10. momo網路銷售評估效益。"],11:["1.出貨：115(2)版版補充樣書。","2.印量：參一刷(含公關書)；各項勘誤、條碼貼紙等。","3.115(2)庫存修訂討論。","4.115(2)銷售前各項設定作業。","5.115(1)核算表修訂。","6.115(2)設定量啟動。","7.116版版補充產品規格、參考書規格異動啟動。","8.115(1)參銷售分析(設定量與預算使用)","9.預算(依據財務公告)"],12:["1.出貨：參補集批出貨；公關書出貨；業務備留量出貨等。","2.115(2)參銷售前置完成(條碼表等)","3.設定量與調書：參考書調設定量與調書作業","4.115(2)版版補充議價規格表。","5.115(2)參補目標量提報。","5.116產品規格確認。","6.116參行銷提案。","7.高高屏補充議價協助。"]};
 
+// ===== STORAGE (localStorage for edits) =====
+const STORE_KEY = "wiki_edits";
+let userEdits = {};
+try { userEdits = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch(e) {}
+
+function saveEdits() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(userEdits)); } catch(e) {}
+}
+
+function getContent(catId, secIdx) {
+  var key = catId + "_" + secIdx;
+  if (userEdits[key]) return userEdits[key];
+  return WIKI_CATS.find(c => c.id === catId).sections[secIdx].content;
+}
+
+function setContent(catId, secIdx, lines) {
+  var key = catId + "_" + secIdx;
+  var original = WIKI_CATS.find(c => c.id === catId).sections[secIdx].content;
+  if (JSON.stringify(lines) === JSON.stringify(original)) {
+    delete userEdits[key];
+  } else {
+    userEdits[key] = lines;
+  }
+  saveEdits();
+}
+
+function showToast(msg) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(function() { t.classList.remove("show"); }, 2000);
+}
+
+function resetAll() {
+  if (!confirm("確定要還原所有修改，恢復成原始版本？")) return;
+  userEdits = {};
+  try { localStorage.removeItem(STORE_KEY); } catch(e) {}
+  editingKey = null;
+  renderSections();
+  showToast("✅ 已還原所有修改");
+}
+
 // ===== APP LOGIC =====
 let activeCat = "all";
 let openSections = new Set();
 let searchTerm = "";
+let editingKey = null;
 
 function init() {
   document.getElementById("totalCount").textContent = WIKI_CATS.reduce((a, c) => a + c.sections.length, 0);
@@ -306,14 +389,16 @@ function renderSections() {
   var matchCount = 0;
   var totalVisible = 0;
 
-  WIKI_CATS.forEach(function(cat) {
+  WIKI_CATS.forEach(function(cat, catIdx) {
     if (activeCat !== "all" && cat.id !== activeCat) return;
 
     var catSections = "";
     cat.sections.forEach(function(sec, si) {
       var key = cat.id + "_" + si;
+      var content = getContent(cat.id, si);
+      var isEdited = !!userEdits[key];
       var titleMatch = searchTerm && sec.title.toLowerCase().indexOf(searchTerm) >= 0;
-      var contentMatch = searchTerm && sec.content.some(function(line) {
+      var contentMatch = searchTerm && content.some(function(line) {
         return line.toLowerCase().indexOf(searchTerm) >= 0;
       });
 
@@ -323,17 +408,28 @@ function renderSections() {
 
       var isOpen = openSections.has(key) || (searchTerm && (titleMatch || contentMatch));
       var titleHtml = searchTerm ? highlightText(sec.title, searchTerm) : escHtml(sec.title);
+      var isEditing = editingKey === key;
 
       catSections += '<div class="section-card'+(searchTerm && (titleMatch||contentMatch)?' highlight':'')+'">' +
         '<div class="section-title" onclick="toggleSection(\''+key+'\')">' +
-        '<span>'+titleHtml+'</span>' +
+        '<span>'+titleHtml+(isEdited?' <span style="font-size:10px;color:#D97706;font-weight:400">（已修改）</span>':'')+'</span>' +
         '<span class="arrow'+(isOpen?' open':'')+'">▶</span></div>' +
         '<div class="section-body'+(isOpen?' show':'')+'">';
 
-      sec.content.forEach(function(line) {
-        var lineHtml = searchTerm ? highlightText(line, searchTerm) : escHtml(line);
-        catSections += '<p>' + lineHtml + '</p>';
-      });
+      if (isEditing) {
+        catSections += '<textarea class="edit-textarea" id="editArea_'+key+'">' + content.map(escHtml).join('\n') + '</textarea>' +
+          '<div class="edit-actions">' +
+          '<button class="btn-cancel" onclick="cancelEdit()">取消</button>' +
+          '<button class="btn-save" onclick="saveEdit(\''+cat.id+'\','+si+')">💾 儲存</button>' +
+          '</div>';
+      } else {
+        catSections += '<div style="display:flex;justify-content:flex-end;margin-bottom:6px">' +
+          '<button class="edit-btn" onclick="event.stopPropagation();startEdit(\''+key+'\')">✏️ 編輯</button></div>';
+        content.forEach(function(line) {
+          var lineHtml = searchTerm ? highlightText(line, searchTerm) : escHtml(line);
+          catSections += '<p>' + lineHtml + '</p>';
+        });
+      }
       catSections += '</div></div>';
     });
 
@@ -350,8 +446,33 @@ function renderSections() {
 }
 
 function toggleSection(key) {
+  if (editingKey === key) return; // don't collapse while editing
   if (openSections.has(key)) openSections.delete(key); else openSections.add(key);
   renderSections();
+}
+
+function startEdit(key) {
+  editingKey = key;
+  openSections.add(key);
+  renderSections();
+  var ta = document.getElementById("editArea_" + key);
+  if (ta) ta.focus();
+}
+
+function cancelEdit() {
+  editingKey = null;
+  renderSections();
+}
+
+function saveEdit(catId, secIdx) {
+  var key = catId + "_" + secIdx;
+  var ta = document.getElementById("editArea_" + key);
+  if (!ta) return;
+  var lines = ta.value.split("\n").filter(function(l) { return l.trim() !== ""; });
+  setContent(catId, secIdx, lines);
+  editingKey = null;
+  renderSections();
+  showToast("✅ 已儲存修改");
 }
 
 function escHtml(s) {
