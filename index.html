@@ -901,7 +901,7 @@ function PaGuide({ open, onClose }) {
 }
 
 /* ═══════ REPORT + CLONE + DATA ═══════ */
-function ReportMd({ open, onClose, tasks, month }) {
+function ReportMd({ open, onClose, tasks, todos, month }) {
   const [dlUrl, setDlUrl] = React.useState(null);
   const [dlName, setDlName] = React.useState("");
   const mt = tasks.filter(t => t.month === month);
@@ -911,17 +911,23 @@ function ReportMd({ open, onClose, tasks, month }) {
   const pd = mt.filter(t => t.status === "pending");
   const fm = t => (t.product === "both" ? "[參+補]" : t.product === "ref" ? "[參]" : "[補]") + " " + t.title;
 
+  const tdUndone = (todos || []).filter(t => !t.done);
+  const tdDone = (todos || []).filter(t => t.done);
+
   const txt = React.useMemo(() => {
     let r = "115年 " + MONTHS[month] + " 月報\n";
     r += "報告日期：" + new Date().toISOString().slice(0, 10) + "\n";
     r += "────────────────────\n";
-    r += "總" + mt.length + " 完成" + d.length + " 進行" + ip.length + " 待處理" + pd.length + "\n";
-    if (d.length) { r += "\n【完成】\n"; d.forEach(t => { r += "  ✓ " + fm(t) + "\n"; }); }
-    if (ip.length) { r += "\n【進行中】\n"; ip.forEach(t => { r += "  ▸ " + fm(t) + "\n"; t.subs.filter(s => s.status !== "done").forEach(s => { r += "    - " + s.title + (s.deadline ? " (" + s.deadline + ")" : "") + "\n"; }); }); }
-    if (pd.length) { r += "\n【待處理】\n"; pd.forEach(t => { r += "  ○ " + fm(t) + "\n"; }); }
+    r += "排程：總" + mt.length + " 完成" + d.length + " 進行" + ip.length + " 待處理" + pd.length + "\n";
+    r += "待辦：總" + (todos||[]).length + " 完成" + tdDone.length + " 未完成" + tdUndone.length + "\n";
+    if (d.length) { r += "\n【排程-完成】\n"; d.forEach(t => { r += "  ✓ " + fm(t) + "\n"; }); }
+    if (ip.length) { r += "\n【排程-進行中】\n"; ip.forEach(t => { r += "  ▸ " + fm(t) + "\n"; t.subs.filter(s => s.status !== "done").forEach(s => { r += "    - " + s.title + (s.deadline ? " (" + s.deadline + ")" : "") + "\n"; }); }); }
+    if (pd.length) { r += "\n【排程-待處理】\n"; pd.forEach(t => { r += "  ○ " + fm(t) + "\n"; }); }
+    if (tdUndone.length) { r += "\n【待辦-未完成】\n"; tdUndone.forEach(t => { r += "  □ " + t.text + (t.project ? " (" + t.project + ")" : "") + "\n"; }); }
+    if (tdDone.length) { r += "\n【待辦-已完成】\n"; tdDone.forEach(t => { r += "  ☑ " + t.text + "\n"; }); }
     if (nxt.length) { r += "\n【下月 " + MONTHS[(month + 1) % 12] + "】\n"; nxt.forEach(t => { r += "  → " + fm(t) + "\n"; }); }
     return r;
-  }, [mt, d, ip, pd, nxt, month]);
+  }, [mt, d, ip, pd, nxt, month, todos, tdUndone, tdDone]);
 
   // Group tasks by category for Excel format
   const catGroups = React.useMemo(() => {
@@ -1008,6 +1014,27 @@ function ReportMd({ open, onClose, tasks, month }) {
         });
       });
     });
+
+    // Todo items section
+    if ((todos || []).length > 0) {
+      rows.push({
+        cells: [
+          { val: "待辦事項（共 " + (todos||[]).length + " 項，完成 " + tdDone.length + " 項）", merge: 6, style: "nextMonth" },
+        ],
+      });
+      (todos || []).forEach(t => {
+        rows.push({
+          cells: [
+            { val: t.done ? "已完成" : "未完成", style: "cat" },
+            { val: t.text, style: "content" },
+            { val: t.project || "", style: "content" },
+            { val: t.createdAt || "", style: "content" },
+            { val: t.done ? "✓" : "", style: "content" },
+            { val: t.linkedTaskId ? "連結排程任務" : "", style: "progress" },
+          ],
+        });
+      });
+    }
 
     // Next month section
     if (nxt.length > 0) {
@@ -2597,7 +2624,7 @@ function App() {
 
       {/* MODALS */}
       {editTask && <TaskEd task={editTask} isNew={isNew} onSave={saveTask} onDel={delTask} onClose={() => { setEditTask(null); setIsNew(false); }} />}
-      <ReportMd open={showReport} onClose={() => setShowReport(false)} tasks={tasks} month={selM} />
+      <ReportMd open={showReport} onClose={() => setShowReport(false)} tasks={tasks} todos={todos} month={selM} />
       <Modal open={showClone} onClose={() => setShowClone(false)} title="📅 複製年度" width={400}>
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 36 }}>📅</div>
